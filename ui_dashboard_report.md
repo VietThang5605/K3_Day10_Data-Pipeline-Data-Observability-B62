@@ -16,6 +16,7 @@ Báo cáo này tổng hợp chi tiết toàn bộ các nội dung công việc �
   - 🟢 **Baseline Mode (Clean Data)**: Nạp ChromaDB collection `papers-baseline` (23 bài báo sạch). RAG Agent trả lời chính xác 90-100%.
   - 🔴 **Corruption Mode (Lỗi Dữ Liệu)**: Nạp ChromaDB collection `papers-corrupted` (Dữ liệu bị xóa summary / chèn nhiễu). Agent **trả lời SAI hoặc từ chối trả lời** trên một số câu hỏi đóng băng (`q1`, `q2`, `q7`).
   - 🔵 **Repaired Mode (Khôi Phục)**: Nạp ChromaDB collection `papers-repaired` (Dữ liệu đã được phục hồi từ Raw Snapshot). Agent phục hồi trả lời chính xác.
+  - ⚡ **3-Mode Comparison (So sánh 3 Cột Song Song)**: Tách màn hình dọc thành 3 cột riêng biệt, cho phép truy vấn đồng thời và so sánh trực tiếp **Câu trả lời (Answer)**, **Điểm tương đồng (Top-1 Score)** và **Top-4 Ngữ cảnh trích xuất (Retrieved Contexts)** giữa cả 3 chế độ song song!
 - **RAG QA Sandbox**:
   - Chọn nhanh 10 câu hỏi đóng băng từ dropdown hoặc gõ câu hỏi bất kỳ.
   - Hiển thị câu trả lời sinh tự nhiên từ `gpt-4o-mini`.

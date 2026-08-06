@@ -103,9 +103,16 @@ def main():
 
     system_mode = st.sidebar.radio(
         "🎯 Choose Data State (Chế độ Dữ liệu):",
-        options=["🟢 Baseline Mode (Clean)", "🔴 Corruption Mode (Lỗi)", "🔵 Repaired Mode (Phục hồi)"],
+        options=[
+            "🟢 Baseline Mode (Clean)",
+            "🔴 Corruption Mode (Lỗi)",
+            "🔵 Repaired Mode (Phục hồi)",
+            "⚡ 3-Mode Comparison (So sánh 3 cột)",
+        ],
         index=0,
     )
+
+    is_compare_mode = "3-Mode Comparison" in system_mode
 
     mode_key = "baseline"
     badge_text = "🟢 BASELINE MODE (Clean 23 Papers)"
@@ -115,6 +122,9 @@ def main():
     elif "Repaired" in system_mode:
         mode_key = "repaired"
         badge_text = "🔵 REPAIRED MODE (Clean 23 Papers)"
+    elif is_compare_mode:
+        mode_key = "compare"
+        badge_text = "⚡ 3-MODE COMPARISON MATRIX"
 
     st.sidebar.info(f"Active Mode: **{badge_text}**")
     st.sidebar.markdown("---")
@@ -137,8 +147,8 @@ def main():
 
         $$\\text{Score} = \\frac{1}{1 + \\text{Distance}}$$
 
-        * **Score $\\approx$ 1.0**: Tương đồng ngữ nghĩa cực cao (Clean baseline).
-        * **Score thấp (< 0.5)**: Tương đồng thấp / Dữ liệu bị nhiễu lỗi (Corrupted data).
+        * **Score $\\approx$ 1.0**: Tương đồng ngữ nghĩa cực cao.
+        * **Score thấp (< 0.5)**: Tương đồng thấp / Dữ liệu nhiễu.
         """
     )
 
@@ -166,39 +176,88 @@ def main():
         if not user_query.strip():
             st.warning("Please enter a question.")
         else:
-            with st.spinner(f"Querying RAG Agent in {mode_key.upper()} mode..."):
-                index, err = load_chroma_index(mode_key)
-                if err:
-                    st.error(err)
-                else:
-                    answer_res = answer_question(question=user_query, index=index, settings=settings)
+            if is_compare_mode:
+                # 3-Column Parallel Comparison Mode
+                st.markdown("## ⚡ Side-by-Side 3-Mode Comparison Matrix")
+                if selected_sample:
+                    st.info(
+                        f"🎯 **Expected Ground Truth**: {selected_sample['ground_truth']}\n\n"
+                        f"📄 **Expected Paper IDs**: `{', '.join(selected_sample['ground_truth_doc_ids'])}`"
+                    )
 
-                    # Display Answer Box
-                    st.markdown("### 💡 Agent Generated Answer")
-                    if mode_key == "corrupted":
-                        st.error(f"**Answer ({mode_key.upper()})**:\n\n{answer_res.answer}")
+                col1, col2, col3 = st.columns(3)
+                modes_info = [
+                    ("🟢 Baseline (Clean)", "baseline", col1),
+                    ("🔴 Corrupted (Lỗi)", "corrupted", col2),
+                    ("🔵 Repaired (Khôi phục)", "repaired", col3),
+                ]
+
+                for label, m_key, col in modes_info:
+                    with col:
+                        st.subheader(label)
+                        index, err = load_chroma_index(m_key)
+                        if err:
+                            st.error(err)
+                        else:
+                            ans = answer_question(question=user_query, index=index, settings=settings)
+                            
+                            # Answer Box
+                            if m_key == "corrupted":
+                                st.error(f"**Answer**:\n\n{ans.answer}")
+                            elif m_key == "baseline":
+                                st.success(f"**Answer**:\n\n{ans.answer}")
+                            else:
+                                st.info(f"**Answer**:\n\n{ans.answer}")
+
+                            # Top-1 Top Score Metrics
+                            scores = getattr(ans, "retrieved_scores", [0.0] * len(ans.retrieved_doc_ids))
+                            top1_score = scores[0] if scores else 0.0
+                            st.metric("Top-1 Similarity Score", f"{top1_score:.4f}")
+
+                            # Top-4 Retrieved Cards
+                            st.markdown("#### 📚 Retrieved Contexts")
+                            for rank, (doc_id, title, ctx, sc) in enumerate(
+                                zip(ans.retrieved_doc_ids, ans.retrieved_titles, ans.retrieved_contexts, scores), 1
+                            ):
+                                with st.expander(f"#{rank} | Score: {sc:.4f} | {doc_id}", expanded=(rank == 1)):
+                                    st.write(f"**Title**: {title}")
+                                    st.write(f"**Score**: `{sc:.4f}`")
+                                    st.code(ctx[:300] + "...", language="text")
+            else:
+                # Single Mode Execution
+                with st.spinner(f"Querying RAG Agent in {mode_key.upper()} mode..."):
+                    index, err = load_chroma_index(mode_key)
+                    if err:
+                        st.error(err)
                     else:
-                        st.success(f"**Answer ({mode_key.upper()})**:\n\n{answer_res.answer}")
+                        answer_res = answer_question(question=user_query, index=index, settings=settings)
 
-                    # Ground Truth Reference Comparison
-                    if selected_sample:
-                        st.markdown("### 🎯 Ground Truth Benchmark Reference")
-                        st.info(
-                            f"**Expected Ground Truth**: {selected_sample['ground_truth']}\n\n"
-                            f"**Expected Paper IDs**: `{', '.join(selected_sample['ground_truth_doc_ids'])}`"
-                        )
+                        # Display Answer Box
+                        st.markdown("### 💡 Agent Generated Answer")
+                        if mode_key == "corrupted":
+                            st.error(f"**Answer ({mode_key.upper()})**:\n\n{answer_res.answer}")
+                        else:
+                            st.success(f"**Answer ({mode_key.upper()})**:\n\n{answer_res.answer}")
 
-                    # Retrieved Context Cards (Top-4) with Score
-                    st.markdown("### 📚 Top-4 Retrieved Context Cards (with Similarity Scores)")
-                    scores = getattr(answer_res, "retrieved_scores", [0.0] * len(answer_res.retrieved_doc_ids))
-                    for rank, (doc_id, title, ctx, score) in enumerate(
-                        zip(answer_res.retrieved_doc_ids, answer_res.retrieved_titles, answer_res.retrieved_contexts, scores), 1
-                    ):
-                        with st.expander(f"Rank #{rank} | Score: {score:.4f} | DOI: {doc_id} | {title}", expanded=(rank == 1)):
-                            st.write(f"**Title**: {title}")
-                            st.write(f"**Paper ID**: `{doc_id}`")
-                            st.write(f"**Similarity Score**: `{score:.4f}`")
-                            st.code(ctx[:400] + "...", language="text")
+                        # Ground Truth Reference Comparison
+                        if selected_sample:
+                            st.markdown("### 🎯 Ground Truth Benchmark Reference")
+                            st.info(
+                                f"**Expected Ground Truth**: {selected_sample['ground_truth']}\n\n"
+                                f"**Expected Paper IDs**: `{', '.join(selected_sample['ground_truth_doc_ids'])}`"
+                            )
+
+                        # Retrieved Context Cards (Top-4) with Score
+                        st.markdown("### 📚 Top-4 Retrieved Context Cards (with Similarity Scores)")
+                        scores = getattr(answer_res, "retrieved_scores", [0.0] * len(answer_res.retrieved_doc_ids))
+                        for rank, (doc_id, title, ctx, score) in enumerate(
+                            zip(answer_res.retrieved_doc_ids, answer_res.retrieved_titles, answer_res.retrieved_contexts, scores), 1
+                        ):
+                            with st.expander(f"Rank #{rank} | Score: {score:.4f} | DOI: {doc_id} | {title}", expanded=(rank == 1)):
+                                st.write(f"**Title**: {title}")
+                                st.write(f"**Paper ID**: `{doc_id}`")
+                                st.write(f"**Similarity Score**: `{score:.4f}`")
+                                st.code(ctx[:400] + "...", language="text")
 
 
 if __name__ == "__main__":
