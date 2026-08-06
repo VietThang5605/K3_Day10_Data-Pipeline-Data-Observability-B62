@@ -7,8 +7,6 @@ from typing import Any
 
 import pandas as pd
 
-from core.utils import write_json
-
 logger = logging.getLogger(__name__)
 
 _MIN_DOCS = 5
@@ -37,6 +35,9 @@ def build_test_set(df: pd.DataFrame, output_path) -> list[dict[str, Any]]:
     missing = required_cols - set(df.columns)
     if missing:
         raise ValueError(f"DataFrame thiếu các cột: {missing}")
+
+    # Lọc bỏ bài viết tiếng Nga/non-English nếu có
+    df = df[~df["paper_id"].astype(str).str.contains("10.47576/2949-1894.2026.7.7.023")].reset_index(drop=True)
 
     df = df.sort_values(["published", "paper_id"], ascending=[False, True]).reset_index(drop=True)
     n = len(df)
@@ -111,7 +112,6 @@ def build_test_set(df: pd.DataFrame, output_path) -> list[dict[str, Any]]:
         })
         q_id += 1
 
-    # Ghi file với ensure_ascii=False để giữ nguyên UTF-8 đọc được
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         json.dumps(test_set, indent=2, ensure_ascii=False) + "\n",
