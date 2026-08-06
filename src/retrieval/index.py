@@ -154,11 +154,13 @@ class LocalEmbeddingIndex:
         for record_id, content, metadata, distance in zip(ids, documents, metadatas, distances, strict=False):
             if not record_id or not metadata or not content:
                 continue
+            dist_val = float(distance) if distance is not None else 0.0
+            similarity_score = 1.0 / (1.0 + dist_val)
             scored.append(
                 SearchResult(
                     paper_id=str(metadata["paper_id"]),
                     title=str(metadata["title"]),
-                    score=max(0.0, 1.0 - float(distance or 0.0)),
+                    score=similarity_score,
                     content=str(content),
                     metadata=dict(metadata),
                 )

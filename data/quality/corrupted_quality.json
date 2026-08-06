@@ -1,0 +1,13 @@
+{
+  "report_name": "corrupted_quality",
+  "passed": false,
+  "total_rows": 25,
+  "checks": {
+    "paper_id_not_null": true,
+    "paper_id_unique": false,
+    "title_not_null": true,
+    "summary_len_ge_100": false,
+    "stale_rows_count": 7,
+    "is_fresh": false
+  }
+}

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Architecture & Pipeline Diagram</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Mermaid.js CDN for Flowcharts -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+    <style>
+        .light-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border-radius: 16px;
+        }
+        .light-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+        }
+        /* Make Mermaid SVG Large and Zoomable */
+        .mermaid svg {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 500px;
+            transform-origin: center top;
+            transition: transform 0.2s ease-in-out;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+        mermaid.initialize({ 
+            startOnLoad: true, 
+            theme: 'default',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased selection:bg-sky-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 shadow-sm">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-xl shadow-md shadow-indigo-500/20">
+                    <i data-lucide="network" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-sky-600 bg-clip-text text-transparent">
+                        System Architecture & Pipeline Blueprint
+                    </h1>
+                    <p class="text-xs text-slate-500">End-to-End RAG Data Pipeline, Observability & Repair Topology</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <a href="/" class="flex items-center space-x-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-all border border-slate-200">
+                    <i data-lucide="activity" class="w-4 h-4 text-sky-600"></i>
+                    <span>Observability Dashboard</span>
+                </a>
+                <a href="http://localhost:8501" target="_blank" class="flex items-center space-x-2 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs rounded-xl transition-all shadow-md shadow-blue-500/20">
+                    <i data-lucide="bot" class="w-4 h-4"></i>
+                    <span>Streamlit Chatbot Sandbox</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+        <!-- 1. End-to-End System Architecture Overview -->
+        <section class="light-card p-6">
+            <div class="flex items-center justify-between mb-4 border-b border-slate-200 pb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="layers" class="w-5 h-5 text-indigo-600"></i>
+                        High-Level System Architecture
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Comprehensive overview of data ingestion, vector indexing, evaluation, and observability layers</p>
+                </div>
+                
+                <!-- Zoom Controls -->
+                <div class="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                    <button onclick="zoomDiagram(1.2)" class="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-lg border border-slate-200 shadow-2xs flex items-center gap-1">
+                        <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-indigo-600"></i> Zoom In
+                    </button>
+                    <button onclick="zoomDiagram(0.8)" class="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-lg border border-slate-200 shadow-2xs flex items-center gap-1">
+                        <i data-lucide="zoom-out" class="w-3.5 h-3.5 text-indigo-600"></i> Zoom Out
+                    </button>
+                    <button onclick="resetZoom()" class="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-lg border border-slate-200 shadow-2xs flex items-center gap-1">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-600"></i> Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mermaid Architecture Diagram Wrapper -->
+            <div id="diagram-wrapper" class="bg-white p-4 rounded-xl border border-slate-200 overflow-auto max-h-[700px] flex justify-center items-center">
+                <div id="mermaid-container" class="mermaid w-full">
+graph TB
+    subgraph Ingestion["1. DATA INGESTION & CLEANING LAYER"]
+        API["Crossref REST API"] --> RawJSON["Raw Records Snapshot (crossref_records.json)"]
+        RawJSON --> Cleaner["Cleaner & Non-Latin Filter (_is_english_latin_text)"]
+        Cleaner --> CleanJSON["Clean Papers Dataset - 23 Records (papers_clean.json)"]
+    end
+
+    subgraph Storage["2. VECTOR INDEXING & CHROMADB LAYER"]
+        CleanJSON --> Embedder["Sentence-Transformers (all-MiniLM-L6-v2)"]
+        Embedder --> ChromaDB[("ChromaDB Persistent Vector Store (papers-baseline / papers-corrupted / papers-repaired)")]
+    end
+
+    subgraph Observability["3. DATA OBSERVABILITY & QUALITY ENGINE"]
+        CleanJSON --> GX["Data Quality Checks (Completeness & Uniqueness)"]
+        CleanJSON --> Freshness["Freshness Monitor (age_days <= 180d)"]
+        GX --> QualityReport["Quality Signals JSON Report"]
+        Freshness --> FreshnessReport["Freshness Signals JSON Report"]
+    end
+
+    subgraph RAG_Engine["4. RAG RETRIEVAL & QA ENGINE"]
+        UserQ["User Query / Frozen Test Set (10 Samples)"] --> TopK["ChromaDB Top-4 Vector Search"]
+        ChromaDB --> TopK
+        TopK --> PromptBuilder["Prompt Context Assembler"]
+        PromptBuilder --> LLM["OpenAI API (gpt-4o-mini)"]
+        LLM --> AgentAns["Generated RAG Answer"]
+    end
+
+    subgraph Evaluation["5. BENCHMARK & EVALUATION LAYER"]
+        AgentAns --> TokenF1["Token F1 Metric Evaluator"]
+        AgentAns --> LLMJudge["LLM Judge Evaluator (gpt-4o-mini)"]
+        LLMJudge --> EvalReport["3-State Comparative Matrix Report"]
+    end
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 3-Phase Data Pipeline Workflow -->
+        <section class="light-card p-6">
+            <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2 border-b border-slate-200 pb-4">
+                <i data-lucide="git-branch" class="w-5 h-5 text-sky-600"></i>
+                3-Phase Data Pipeline Flowchart
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- Phase 1 Card -->
+                <div class="p-5 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2.5 py-1 bg-emerald-600 text-white font-bold text-xs rounded-md shadow-xs">Phase 1</span>
+                        <h3 class="font-bold text-slate-900 text-sm">Baseline Ingestion & Eval</h3>
+                    </div>
+                    <ul class="text-xs text-slate-700 space-y-2 list-disc list-inside">
+                        <li>Fetch 24 scholarly papers via Crossref REST API.</li>
+                        <li>Filter out non-Latin scripts (Russian paper dropped).</li>
+                        <li>Build 23 clean English papers dataset.</li>
+                        <li>Index into ChromaDB <code>papers-baseline</code> collection.</li>
+                        <li>Evaluate on 10 frozen questions (Hit Rate: 100%, Accuracy: 90%).</li>
+                    </ul>
+                </div>
+
+                <!-- Phase 2 Card -->
+                <div class="p-5 bg-rose-50/60 rounded-xl border border-rose-200 space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2.5 py-1 bg-rose-600 text-white font-bold text-xs rounded-md shadow-xs">Phase 2</span>
+                        <h3 class="font-bold text-slate-900 text-sm">Controlled Corruption</h3>
+                    </div>
+                    <ul class="text-xs text-slate-700 space-y-2 list-disc list-inside">
+                        <li>Inject 4 controlled corruption scenarios:</li>
+                        <li class="pl-2">1. Blank summary (Hi-RAG q1).</li>
+                        <li class="pl-2">2. Add culinary noise (CM-RAF q2, JADE q7).</li>
+                        <li class="pl-2">3. Stale date (5 papers backdated to 2000).</li>
+                        <li class="pl-2">4. Duplicates & missing paper_id.</li>
+                        <li>Hit Rate drops to 90%, Accuracy drops to 70%.</li>
+                    </ul>
+                </div>
+
+                <!-- Phase 3 Card -->
+                <div class="p-5 bg-blue-50/60 rounded-xl border border-blue-200 space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2.5 py-1 bg-blue-600 text-white font-bold text-xs rounded-md shadow-xs">Phase 3</span>
+                        <h3 class="font-bold text-slate-900 text-sm">Snapshot Repair & Matrix</h3>
+                    </div>
+                    <ul class="text-xs text-slate-700 space-y-2 list-disc list-inside">
+                        <li>Trigger automated repair from raw snapshot JSON.</li>
+                        <li>Re-clean and re-index into <code>papers-repaired</code>.</li>
+                        <li>Quality & Freshness checks recover to 100% PASSED.</li>
+                        <li>Hit Rate & LLM Judge Accuracy recover to 100% / 90%.</li>
+                        <li>Render 3-State Comparative Matrix Report.</li>
+                    </ul>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 3. Tech Stack & Directory Structure -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Tech Stack -->
+            <div class="light-card p-6 space-y-4">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2 border-b border-slate-200 pb-3">
+                    <i data-lucide="cpu" class="w-5 h-5 text-indigo-600"></i>
+                    Core Technology Stack
+                </h2>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="p-3 bg-slate-100 rounded-lg border border-slate-200">
+                        <p class="text-slate-500 font-medium">LLM Engine</p>
+                        <p class="font-bold text-slate-900 mt-0.5">OpenAI gpt-4o-mini</p>
+                    </div>
+                    <div class="p-3 bg-slate-100 rounded-lg border border-slate-200">
+                        <p class="text-slate-500 font-medium">Embedding Model</p>
+                        <p class="font-bold text-slate-900 mt-0.5">Sentence-Transformers (MiniLM)</p>
+                    </div>
+                    <div class="p-3 bg-slate-100 rounded-lg border border-slate-200">
+                        <p class="text-slate-500 font-medium">Vector Database</p>
+                        <p class="font-bold text-slate-900 mt-0.5">ChromaDB Persistent Client</p>
+                    </div>
+                    <div class="p-3 bg-slate-100 rounded-lg border border-slate-200">
+                        <p class="text-slate-500 font-medium">Web Dashboard</p>
+                        <p class="font-bold text-slate-900 mt-0.5">FastAPI & TailwindCSS</p>
+                    </div>
+                    <div class="p-3 bg-slate-100 rounded-lg border border-slate-200">
+                        <p class="text-slate-500 font-medium">Chatbot Sandbox</p>
+                        <p class="font-bold text-slate-900 mt-0.5">Streamlit Framework</p>
+                    </div>
+                    <div class="p-3 bg-slate-100 rounded-lg border border-slate-200">
+                        <p class="text-slate-500 font-medium">Data Quality</p>
+                        <p class="font-bold text-slate-900 mt-0.5">Custom Validation Engine</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Directory Artifacts -->
+            <div class="light-card p-6 space-y-4">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2 border-b border-slate-200 pb-3">
+                    <i data-lucide="folder-tree" class="w-5 h-5 text-sky-600"></i>
+                    Artifacts Directory Structure
+                </h2>
+                <div class="p-3 bg-slate-900 text-slate-200 font-mono text-xs rounded-xl overflow-x-auto">
+                    <pre>data/
+├── raw/crossref_records.json
+├── clean/papers_clean.json
+├── eval/test_set.json
+└── results/
+    ├── baseline_metrics.json
+    ├── corrupted_metrics.json
+    ├── repaired_metrics.json
+    ├── corruption_log.json
+    └── comparison_report.md</pre>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="text-center py-6 text-xs text-slate-500 border-t border-slate-200 bg-white">
+        RAG System Architecture & Data Pipeline Topology &copy; 2026. Built with FastAPI, Streamlit & TailwindCSS.
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        let currentScale = 1.0;
+        
+        function zoomDiagram(factor) {
+            currentScale *= factor;
+            if (currentScale < 0.5) currentScale = 0.5;
+            if (currentScale > 3.0) currentScale = 3.0;
+            
+            const svg = document.querySelector('#mermaid-container svg');
+            if (svg) {
+                svg.style.transform = `scale(${currentScale})`;
+            }
+        }
+
+        function resetZoom() {
+            currentScale = 1.0;
+            const svg = document.querySelector('#mermaid-container svg');
+            if (svg) {
+                svg.style.transform = `scale(1.0)`;
+            }
+        }
+    </script>
+</body>
+</html>
