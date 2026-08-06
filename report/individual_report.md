@@ -4,13 +4,12 @@
 
 | Thông tin | Nội dung |
 | --- | --- |
-| Họ và tên | [Họ và tên] |
-| MSSV | [MSSV] |
-| Khóa/Lớp | [Khóa/Lớp] |
-| Tên nhóm | [Tên hoặc mã nhóm] |
-| Vai trò chính | Người 4 — Data observability và reporting |
-| Repository | [Đường dẫn repository] |
-| Ngày hoàn thành | [YYYY-MM-DD] |
+| Họ và tên | Lê Hồng Đức |
+| MSSV | 2A202601313 |
+| Khóa/Lớp | K3 |
+| Tên nhóm | B6-2 |
+| Vai trò chính | Role 4 — Data observability và reporting |
+| Ngày hoàn thành | 6/8/2026 |
 
 ## 2. Vai trò và phạm vi công việc
 
@@ -133,5 +132,4 @@ Nếu có thêm thời gian, tôi sẽ bổ sung contract test ở mức pipelin
 - [ ] Tôi không ghi “đã chạy thành công” cho phần chưa được kiểm chứng.
 - [ ] Báo cáo không chứa `.env`, API key, token hoặc secret.
 
-**Họ và tên:** [Họ và tên]
-**Ngày xác nhận:** [YYYY-MM-DD]
+**Họ và tên:** Lê Hồng Đức
