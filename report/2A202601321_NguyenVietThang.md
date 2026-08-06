@@ -75,7 +75,16 @@ Quy tắc parsing chính:
 - **Lý do:** API bên ngoài có thể thay đổi theo thời gian; snapshot giữ đúng tập DOI làm cơ sở so sánh baseline–corrupted–repaired, không bị rate limit và tái lập nhanh hơn. Raw response vẫn giữ bằng chứng của payload gốc khi cần audit parsing.
 - **Bằng chứng:** Repair trả về 23 record sạch, quality pass và retrieval hit rate 1.0, đúng số row/hit rate baseline; xem `data/quality/repaired_quality.json` và `data/results/repaired_metrics.json`.
 
-## 6. Hiểu biết về luồng end-to-end
+## 6. Một lỗi hoặc blocker đã xử lý
+
+- **Triệu chứng:** Request tới Crossref có thể nhận HTTP `429 Too Many Requests`, khiến việc lấy dữ liệu bị gián đoạn nếu chỉ gọi API một lần.
+- **Cách tái hiện:** Trong `src/ingestion/test_crossref.py`, mock `requests.get` trả về lần lượt một response `429` rồi một response `200` chứa payload hợp lệ.
+- **Nguyên nhân gốc:** Crossref áp dụng giới hạn tần suất truy cập để bảo vệ dịch vụ; đây là lỗi tạm thời từ nguồn bên ngoài, không phải lỗi schema của dữ liệu.
+- **Cách xử lý:** `fetch_source_records` sử dụng `User-Agent` có `mailto` cho Crossref Polite Pool, timeout 30 giây, và retry tối đa 5 lần đối với HTTP 429/503 hoặc `requests.RequestException`. Thời gian chờ exponential backoff là 1, 2, 4, 8 và 16 giây.
+- **Cách xác minh sau khi xử lý:** Chạy `UV_CACHE_DIR=/private/tmp/uv-cache uv run python -m unittest src/ingestion/test_crossref.py`. Kết quả log có dòng `Crossref API returned temporary status 429. Retrying in 1.0 seconds...`, sau đó toàn bộ 2 test pass (`OK`). Test cũng kiểm tra sự tồn tại và nội dung của cả raw response lẫn raw records.
+- **Điều học được:** Với nguồn API công khai, retry có chọn lọc và lưu snapshot tại lần gọi thành công giúp pipeline bền vững hơn, tránh thất bại vì sự cố mạng/rate limit ngắn hạn và hỗ trợ tái lập downstream.
+
+## 7. Hiểu biết về luồng end-to-end
 
 1. Crossref cung cấp payload; ingestion lưu raw response, parse thành `PaperRecord` và lưu raw records. Cleaning làm sạch JATS/text, lọc record không đạt, tạo `text_for_embedding` và `age_days`; index tạo embedding MiniLM và ChromaDB.
 2. Test set gồm 10 câu hỏi có `ground_truth_doc_ids`. Evaluation đối chiếu DOI của tài liệu được retrieve với các ID này để tính retrieval hit rate; câu trả lời được so với ground truth bằng token F1 và LLM judge.
@@ -83,7 +92,7 @@ Quy tắc parsing chính:
 4. Cùng test set là điều kiện kiểm soát thí nghiệm: khác biệt metric giữa baseline, corrupted và repaired khi đó phản ánh dữ liệu/index, không phải độ khó câu hỏi thay đổi.
 5. Repair thành công khi rebuild từ snapshot tạo lại data contract/quality/freshness đúng, số row trở về 23 và các metric truy xuất/trả lời phục hồi gần hoặc bằng baseline.
 
-## 7. Phân tích kết quả toàn pipeline
+## 8. Phân tích kết quả toàn pipeline
 
 | Metric/signal | Baseline | Corrupted | Repaired | Nhận xét |
 | --- | ---: | ---: | ---: | --- |
@@ -98,7 +107,7 @@ Chuỗi bằng chứng: (1) blank summary và semantic poisoning làm `text_for_
 
 Tín hiệu quan sát được khác với mô tả corruption là quality check `paper_id_not_null` vẫn `true` ở corrupted. Báo cáo ghi đã xóa một ID, nhưng check dùng `notnull()` nên chuỗi rỗng không bị xem là null. Đây là khoảng trống của rule quality; nên bổ sung kiểm tra `paper_id.str.strip().ne("")`.
 
-## 8. Điều học được và cải thiện
+## 9. Điều học được và cải thiện
 
 1. Raw snapshot là ranh giới quan trọng giữa nguồn thay đổi và pipeline tái lập được.
 2. Schema và rule lọc cần được phân tách rõ: Ingestion bảo toàn raw semantics/JATS, còn Cleaning quyết định chất lượng cho embedding.
@@ -106,7 +115,7 @@ Tín hiệu quan sát được khác với mô tả corruption là quality check
 
 Nếu có thêm thời gian, tôi sẽ bổ sung test contract giữa `Settings` và tất cả test fixture, cùng test edge case cho title/summary/DOI rỗng. Tiêu chí đo là toàn bộ suite pass và quality check phát hiện được cả ID `null` lẫn ID rỗng.
 
-## 9. Cam kết
+## 10. Cam kết
 
 - [x] Nội dung phản ánh đúng phần ingestion tôi phụ trách và các artifact có trong repository.
 - [x] Tôi có thể giải thích luồng end-to-end và vai trò của raw snapshot trong repair.
