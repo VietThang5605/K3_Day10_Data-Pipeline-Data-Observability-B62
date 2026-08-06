@@ -23,15 +23,30 @@ def corrupt_clean_dataframe(df: pd.DataFrame, output_log_path: Path | str) -> pd
         corrupted_df.loc[target_q1_mask, "summary_chars"] = 0
         corruption_logs.append(
             {
-                "scenario": "blank_summary",
+                "scenario": "Blank Summary Injection",
                 "paper_id": "10.1111/exsy.70341",
-                "action": "Cleared summary content to test retrieval failure on question q1.",
+                "action": "Cleared all summary and embedding text for Hi-RAG paper.",
+                "affected_questions": ["Question q1 (Hi-RAG MCPBench Question)"],
+                "impact_reason": "When summary is erased, vector embedding loses context about 201 tools and 40 services. RAG Agent fails to extract facts and LLM Judge rates as FAILED.",
             }
         )
 
     # --- Scenario 2: Add Noise / Poison Content (Targeting paper 10.21203/rs.3.rs-10178277/v1 for q2 and 10.1007/s10278-026-02086-9 for q7) ---
-    target_noise_ids = ["10.21203/rs.3.rs-10178277/v1", "10.1007/s10278-026-02086-9"]
-    for pid in target_noise_ids:
+    target_noise_map = [
+        (
+            "10.21203/rs.3.rs-10178277/v1",
+            "Question q2 (CM-RAF-Lag-Llama MSE Question)",
+            "Replaced summary with ancient agricultural and culinary noise for CM-RAF-Lag-Llama paper.",
+            "Vector embedding undergoes severe semantic drift toward agriculture/cooking. ChromaDB retrieves irrelevant papers, causing 100% incorrect RAG answer on 28.85% MSE reduction.",
+        ),
+        (
+            "10.1007/s10278-026-02086-9",
+            "Question q7 & q9 (JADE-Plus Medical AI Question)",
+            "Replaced medical summary with culinary noise for JADE-Plus paper.",
+            "Medical AI vector embedding is completely corrupted. RAG Agent cannot retrieve medical knowledge, leading to factual hallucinations.",
+        ),
+    ]
+    for pid, q_info, act, reason in target_noise_map:
         mask = corrupted_df["paper_id"].str.lower() == pid.lower()
         if mask.any():
             corrupted_df.loc[mask, "summary"] = (
@@ -40,9 +55,11 @@ def corrupt_clean_dataframe(df: pd.DataFrame, output_log_path: Path | str) -> pd
             corrupted_df.loc[mask, "summary_chars"] = len(corrupted_df.loc[mask, "summary"].values[0])
             corruption_logs.append(
                 {
-                    "scenario": "add_noise",
+                    "scenario": "Add Noise / Semantic Poisoning",
                     "paper_id": pid,
-                    "action": "Replaced summary with irrevelant culinary noise to disrupt semantic search on q2/q7.",
+                    "action": act,
+                    "affected_questions": [q_info],
+                    "impact_reason": reason,
                 }
             )
 
@@ -50,13 +67,17 @@ def corrupt_clean_dataframe(df: pd.DataFrame, output_log_path: Path | str) -> pd
     stale_indices = corrupted_df.index[:5]
     corrupted_df.loc[stale_indices, "published"] = "2000-01-01"
     corrupted_df.loc[stale_indices, "age_days"] = 9500
+
     for idx in stale_indices:
-        pid = corrupted_df.loc[idx, "paper_id"]
+        pid = str(corrupted_df.loc[idx, "paper_id"])
+        title = str(corrupted_df.loc[idx, "title"])
         corruption_logs.append(
             {
-                "scenario": "stale_date",
+                "scenario": "Stale Published Date Injection",
                 "paper_id": pid,
-                "action": "Set published date to 2000-01-01 to trigger Freshness Check failure.",
+                "action": f"Backdated publication date for paper '{title[:40]}...' to 2000-01-01 (age > 9500 days).",
+                "affected_questions": ["Observability Freshness Signal"],
+                "impact_reason": "Setting published date to year 2000 forces age_days beyond 180-day threshold. Observability monitor automatically triggers STALE DATA 🔴 status.",
             }
         )
 
@@ -65,9 +86,11 @@ def corrupt_clean_dataframe(df: pd.DataFrame, output_log_path: Path | str) -> pd
     duplicate_rows.iloc[0, duplicate_rows.columns.get_loc("paper_id")] = ""
     corruption_logs.append(
         {
-            "scenario": "missing_and_duplicate_paper_id",
-            "paper_id": "",
-            "action": "Added duplicate rows and injected blank paper_id to trigger Uniqueness and Completeness failures.",
+            "scenario": "Duplicates & Missing Paper ID",
+            "paper_id": "Blank / Duplicated Record",
+            "action": "Duplicated 2 rows and erased paper_id for one record.",
+            "affected_questions": ["Observability Completeness & Uniqueness Signals"],
+            "impact_reason": "Violates Data Contract. Uniqueness check reports FAILED 🔴 due to duplicate rows and Completeness check reports FAILED 🔴 due to missing primary key.",
         }
     )
     corrupted_df = pd.concat([corrupted_df, duplicate_rows], ignore_index=True)

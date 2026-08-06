@@ -1,47 +1,83 @@
 [
   {
-    "scenario": "blank_summary",
+    "scenario": "Blank Summary Injection",
     "paper_id": "10.1111/exsy.70341",
-    "action": "Cleared summary content to test retrieval failure on question q1."
+    "action": "Cleared all summary and embedding text for Hi-RAG paper.",
+    "affected_questions": [
+      "Question q1 (Hi-RAG MCPBench Question)"
+    ],
+    "impact_reason": "When summary is erased, vector embedding loses context about 201 tools and 40 services. RAG Agent fails to extract facts and LLM Judge rates as FAILED."
   },
   {
-    "scenario": "add_noise",
+    "scenario": "Add Noise / Semantic Poisoning",
     "paper_id": "10.21203/rs.3.rs-10178277/v1",
-    "action": "Replaced summary with irrevelant culinary noise to disrupt semantic search on q2/q7."
+    "action": "Replaced summary with ancient agricultural and culinary noise for CM-RAF-Lag-Llama paper.",
+    "affected_questions": [
+      "Question q2 (CM-RAF-Lag-Llama MSE Question)"
+    ],
+    "impact_reason": "Vector embedding undergoes severe semantic drift toward agriculture/cooking. ChromaDB retrieves irrelevant papers, causing 100% incorrect RAG answer on 28.85% MSE reduction."
   },
   {
-    "scenario": "add_noise",
+    "scenario": "Add Noise / Semantic Poisoning",
     "paper_id": "10.1007/s10278-026-02086-9",
-    "action": "Replaced summary with irrevelant culinary noise to disrupt semantic search on q2/q7."
+    "action": "Replaced medical summary with culinary noise for JADE-Plus paper.",
+    "affected_questions": [
+      "Question q7 & q9 (JADE-Plus Medical AI Question)"
+    ],
+    "impact_reason": "Medical AI vector embedding is completely corrupted. RAG Agent cannot retrieve medical knowledge, leading to factual hallucinations."
   },
   {
-    "scenario": "stale_date",
+    "scenario": "Stale Published Date Injection",
     "paper_id": "10.2118/234689-pa",
-    "action": "Set published date to 2000-01-01 to trigger Freshness Check failure."
+    "action": "Backdated publication date for paper 'SafeRAG: A Large-Language-Model-Based Mu...' to 2000-01-01 (age > 9500 days).",
+    "affected_questions": [
+      "Observability Freshness Signal"
+    ],
+    "impact_reason": "Setting published date to year 2000 forces age_days beyond 180-day threshold. Observability monitor automatically triggers STALE DATA \ud83d\udd34 status."
   },
   {
-    "scenario": "stale_date",
+    "scenario": "Stale Published Date Injection",
     "paper_id": "10.1111/exsy.70341",
-    "action": "Set published date to 2000-01-01 to trigger Freshness Check failure."
+    "action": "Backdated publication date for paper 'Hi\u2010 RAG : A Hierarchical Retrieval\u2010Augme...' to 2000-01-01 (age > 9500 days).",
+    "affected_questions": [
+      "Observability Freshness Signal"
+    ],
+    "impact_reason": "Setting published date to year 2000 forces age_days beyond 180-day threshold. Observability monitor automatically triggers STALE DATA \ud83d\udd34 status."
   },
   {
-    "scenario": "stale_date",
+    "scenario": "Stale Published Date Injection",
     "paper_id": "10.1007/s10278-026-02086-9",
-    "action": "Set published date to 2000-01-01 to trigger Freshness Check failure."
+    "action": "Backdated publication date for paper 'JADE-Plus: A Multimodal Agentic Retrieva...' to 2000-01-01 (age > 9500 days).",
+    "affected_questions": [
+      "Observability Freshness Signal"
+    ],
+    "impact_reason": "Setting published date to year 2000 forces age_days beyond 180-day threshold. Observability monitor automatically triggers STALE DATA \ud83d\udd34 status."
   },
   {
-    "scenario": "stale_date",
+    "scenario": "Stale Published Date Injection",
     "paper_id": "10.21203/rs.3.rs-10178277/v1",
-    "action": "Set published date to 2000-01-01 to trigger Freshness Check failure."
+    "action": "Backdated publication date for paper 'Retrieval-Augmented Large-Language-Model...' to 2000-01-01 (age > 9500 days).",
+    "affected_questions": [
+      "Observability Freshness Signal"
+    ],
+    "impact_reason": "Setting published date to year 2000 forces age_days beyond 180-day threshold. Observability monitor automatically triggers STALE DATA \ud83d\udd34 status."
   },
   {
-    "scenario": "stale_date",
+    "scenario": "Stale Published Date Injection",
     "paper_id": "10.2196/preprints.106157",
-    "action": "Set published date to 2000-01-01 to trigger Freshness Check failure."
+    "action": "Backdated publication date for paper 'Does retrieval-augmented generation impa...' to 2000-01-01 (age > 9500 days).",
+    "affected_questions": [
+      "Observability Freshness Signal"
+    ],
+    "impact_reason": "Setting published date to year 2000 forces age_days beyond 180-day threshold. Observability monitor automatically triggers STALE DATA \ud83d\udd34 status."
   },
   {
-    "scenario": "missing_and_duplicate_paper_id",
-    "paper_id": "",
-    "action": "Added duplicate rows and injected blank paper_id to trigger Uniqueness and Completeness failures."
+    "scenario": "Duplicates & Missing Paper ID",
+    "paper_id": "Blank / Duplicated Record",
+    "action": "Duplicated 2 rows and erased paper_id for one record.",
+    "affected_questions": [
+      "Observability Completeness & Uniqueness Signals"
+    ],
+    "impact_reason": "Violates Data Contract. Uniqueness check reports FAILED \ud83d\udd34 due to duplicate rows and Completeness check reports FAILED \ud83d\udd34 due to missing primary key."
   }
 ]

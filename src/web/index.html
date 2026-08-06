@@ -222,23 +222,44 @@
                 });
 
                 // 2. Fetch Corruption Log
-                const logRes = await fetch('/api/corruption-log');
-                const logData = await logRes.json();
+                const logRes2 = await fetch('/api/corruption-log');
+                const logData = await logRes2.json();
                 
                 const logGrid = document.getElementById('corruption-scenarios-grid');
                 logGrid.innerHTML = '';
                 
-                logData.forEach(item => {
+                logData.forEach((item, idx) => {
                     const card = document.createElement('div');
-                    card.className = 'p-4 bg-rose-50/60 rounded-xl border border-rose-200 shadow-sm';
+                    card.className = 'p-5 bg-rose-50/80 rounded-xl border border-rose-200 shadow-sm space-y-2.5';
+                    
+                    const affectedHtml = (item.affected_questions || []).map(q => 
+                        `<span class="inline-block px-2.5 py-0.5 bg-rose-200 text-rose-950 font-bold rounded-md text-xs border border-rose-300 mr-1">${q}</span>`
+                    ).join('');
+
                     card.innerHTML = `
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-rose-200 text-rose-800 border border-rose-300">
-                                Scenario: ${item.scenario}
+                        <div class="flex justify-between items-center border-b border-rose-200 pb-2">
+                            <span class="text-xs font-extrabold uppercase px-2.5 py-1 rounded bg-rose-700 text-white shadow-xs">
+                                Scenario #${idx + 1}: ${item.scenario}
                             </span>
-                            <span class="text-xs font-mono text-slate-500">${item.paper_id || 'ID Blank'}</span>
+                            <span class="text-xs font-mono font-bold text-slate-600">DOI: ${item.paper_id || 'N/A'}</span>
                         </div>
-                        <p class="text-xs text-slate-700 mt-2 font-medium">${item.action}</p>
+                        
+                        <div>
+                            <p class="text-xs text-slate-800 font-medium"><b class="text-slate-900 font-bold">Action Taken:</b> ${item.action}</p>
+                        </div>
+
+                        ${affectedHtml ? `
+                        <div>
+                            <p class="text-xs font-bold text-rose-950 mb-1">🎯 Affected Question / Signal:</p>
+                            <div class="flex flex-wrap gap-1">${affectedHtml}</div>
+                        </div>
+                        ` : ''}
+
+                        ${item.impact_reason ? `
+                        <div class="p-3 bg-white/90 rounded-lg border border-rose-200 text-xs text-slate-800 leading-relaxed font-normal shadow-2xs">
+                            <b class="text-rose-700 font-bold">💡 Why it is impacted:</b> ${item.impact_reason}
+                        </div>
+                        ` : ''}
                     `;
                     logGrid.appendChild(card);
                 });
