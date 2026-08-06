@@ -109,6 +109,7 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
         "missing_paper_id": 0,
         "missing_title": 0,
         "missing_summary": 0,
+        "short_summary": 0,
         "invalid_published": 0,
     }
 
@@ -126,6 +127,9 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
             continue
         if not summary:
             filter_counts["missing_summary"] += 1
+            continue
+        if len(summary) < 100:
+            filter_counts["short_summary"] += 1
             continue
         if pd.isna(published_date):
             filter_counts["invalid_published"] += 1
