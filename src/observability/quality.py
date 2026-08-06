@@ -64,7 +64,7 @@ def _freshness_stats(df: pd.DataFrame, threshold_days: int) -> dict[str, Any]:
             "future_dated_rows": 0,
             "is_fresh": False,
             "status": "unknown",
-            "message": "The required age_days column is missing.",
+            "message": "Cột age_days bắt buộc bị thiếu.",
         }
 
     invalid_mask = age_days.isna() & ~missing_mask
@@ -87,13 +87,13 @@ def _freshness_stats(df: pd.DataFrame, threshold_days: int) -> dict[str, Any]:
 
     if is_fresh:
         status = "fresh"
-        message = "All rows have valid age_days values within the configured threshold."
+        message = "Tất cả các hàng có giá trị age_days hợp lệ nằm trong ngưỡng cấu hình."
     elif stale_rows:
         status = "stale"
-        message = "One or more rows are older than the configured freshness threshold."
+        message = "Một hoặc nhiều hàng cũ hơn ngưỡng freshness được cấu hình."
     else:
         status = "unknown"
-        message = "Freshness cannot be established because the dataset is empty or has invalid age_days values."
+        message = "Không thể xác định độ tươi mới vì tập dữ liệu trống hoặc có giá trị age_days không hợp lệ."
 
     return {
         "age_days_column_present": True,
@@ -165,17 +165,17 @@ def run_data_quality_checks(df: pd.DataFrame, settings: Settings, report_name: s
     checks: dict[str, dict[str, Any]] = {
         "minimum_row_count": _check(
             total_rows >= minimum_rows,
-            "Dataset has enough rows for the required evaluation coverage."
+            "Tập dữ liệu có đủ số hàng cho phạm vi đánh giá yêu cầu."
             if total_rows >= minimum_rows
-            else "Dataset has fewer rows than the minimum required for evaluation coverage.",
+            else "Tập dữ liệu có ít hàng hơn mức tối thiểu yêu cầu cho phạm vi đánh giá.",
             actual=total_rows,
             minimum=minimum_rows,
         ),
         "required_columns": _check(
             not missing_columns,
-            "All required columns are present."
+            "Tất cả các cột bắt buộc đều hiển thị."
             if not missing_columns
-            else "Required columns are missing from the dataframe.",
+            else "Các cột bắt buộc bị thiếu khỏi dataframe.",
             missing_columns=missing_columns,
         ),
     }
@@ -188,33 +188,33 @@ def run_data_quality_checks(df: pd.DataFrame, settings: Settings, report_name: s
         )
         checks["paper_id_not_null"] = _check(
             blank_paper_ids == 0,
-            "Every row has a non-blank paper_id."
+            "Mọi hàng đều có paper_id không trống."
             if blank_paper_ids == 0
-            else "One or more rows have a blank paper_id.",
+            else "Một hoặc nhiều hàng có paper_id bị trống.",
             blank_rows=blank_paper_ids,
         )
         checks["paper_id_unique"] = _check(
             duplicate_paper_ids == 0,
-            "paper_id values are unique."
+            "Các giá trị paper_id là duy nhất."
             if duplicate_paper_ids == 0
-            else "Duplicate non-blank paper_id values were found.",
+            else "Tìm thấy các giá trị paper_id không trống bị trùng lặp.",
             duplicate_rows=duplicate_paper_ids,
         )
     else:
-        checks["paper_id_not_null"] = _check(False, "The paper_id column is missing.", blank_rows=None)
-        checks["paper_id_unique"] = _check(False, "The paper_id column is missing.", duplicate_rows=None)
+        checks["paper_id_not_null"] = _check(False, "Cột paper_id bị thiếu.", blank_rows=None)
+        checks["paper_id_unique"] = _check(False, "Cột paper_id bị thiếu.", duplicate_rows=None)
 
     if "title" in df.columns:
         blank_titles = _count(_blank_mask(df["title"]))
         checks["title_not_blank"] = _check(
             blank_titles == 0,
-            "Every row has a non-blank title."
+            "Mọi hàng đều có tiêu đề không trống."
             if blank_titles == 0
-            else "One or more rows have a blank title.",
+            else "Một hoặc nhiều hàng có tiêu đề bị trống.",
             blank_rows=blank_titles,
         )
     else:
-        checks["title_not_blank"] = _check(False, "The title column is missing.", blank_rows=None)
+        checks["title_not_blank"] = _check(False, "Cột title bị thiếu.", blank_rows=None)
 
     if "summary" in df.columns:
         summaries = df["summary"].astype("string").fillna("").str.strip()
@@ -223,9 +223,9 @@ def run_data_quality_checks(df: pd.DataFrame, settings: Settings, report_name: s
         invalid_summaries = blank_summaries + short_summaries
         checks["summary_length"] = _check(
             invalid_summaries == 0,
-            "All summaries meet the minimum length."
+            "Tất cả tóm tắt đáp ứng độ dài tối thiểu."
             if invalid_summaries == 0
-            else "One or more summaries are blank or shorter than the minimum length.",
+            else "Một hoặc nhiều tóm tắt bị trống hoặc ngắn hơn độ dài tối thiểu.",
             minimum_chars=MIN_SUMMARY_CHARS,
             blank_rows=blank_summaries,
             too_short_rows=short_summaries,
@@ -233,7 +233,7 @@ def run_data_quality_checks(df: pd.DataFrame, settings: Settings, report_name: s
     else:
         checks["summary_length"] = _check(
             False,
-            "The summary column is missing.",
+            "Cột summary bị thiếu.",
             minimum_chars=MIN_SUMMARY_CHARS,
             blank_rows=None,
             too_short_rows=None,
@@ -243,9 +243,9 @@ def run_data_quality_checks(df: pd.DataFrame, settings: Settings, report_name: s
     published_invalid_rows = published["missing_published"] + published["invalid_published"]
     checks["published_date_valid"] = _check(
         published["published_column_present"] and published_invalid_rows == 0,
-        "All published values are parseable dates."
+        "Tất cả các giá trị published đều là ngày hợp lệ."
         if published["published_column_present"] and published_invalid_rows == 0
-        else "The published column is missing or contains missing/invalid dates.",
+        else "Cột published bị thiếu hoặc chứa ngày bị thiếu/không hợp lệ.",
         missing_rows=published["missing_published"],
         invalid_rows=published["invalid_published"],
     )
