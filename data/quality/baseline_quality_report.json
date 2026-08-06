@@ -1,0 +1,88 @@
+{
+  "report_name": "baseline",
+  "generated_at": "2026-08-06T05:02:48+00:00",
+  "dataset": {
+    "total_rows": 24,
+    "columns": [
+      "paper_id",
+      "title",
+      "summary",
+      "authors",
+      "categories",
+      "primary_category",
+      "published",
+      "updated",
+      "age_days",
+      "authors_joined",
+      "categories_joined",
+      "summary_chars",
+      "text_for_embedding",
+      "abs_url",
+      "pdf_url",
+      "comment"
+    ]
+  },
+  "thresholds": {
+    "minimum_rows": 4,
+    "minimum_summary_chars": 30,
+    "freshness_threshold_days": 180
+  },
+  "checks": {
+    "minimum_row_count": {
+      "passed": true,
+      "actual": 24,
+      "minimum": 4,
+      "message": "Dataset has enough rows for the required evaluation coverage."
+    },
+    "required_columns": {
+      "passed": true,
+      "missing_columns": [],
+      "message": "All required columns are present."
+    },
+    "paper_id_not_null": {
+      "passed": true,
+      "blank_rows": 0,
+      "message": "Every row has a non-blank paper_id."
+    },
+    "paper_id_unique": {
+      "passed": true,
+      "duplicate_rows": 0,
+      "message": "paper_id values are unique."
+    },
+    "title_not_blank": {
+      "passed": true,
+      "blank_rows": 0,
+      "message": "Every row has a non-blank title."
+    },
+    "summary_length": {
+      "passed": true,
+      "minimum_chars": 30,
+      "blank_rows": 0,
+      "too_short_rows": 0,
+      "message": "All summaries meet the minimum length."
+    },
+    "published_date_valid": {
+      "passed": true,
+      "missing_rows": 0,
+      "invalid_rows": 0,
+      "message": "All published values are parseable dates."
+    },
+    "freshness": {
+      "passed": true,
+      "freshness_threshold_days": 180,
+      "stale_rows": 0,
+      "missing_age_days": 0,
+      "invalid_age_days": 0,
+      "future_dated_rows": 0,
+      "message": "All rows have valid age_days values within the configured threshold."
+    }
+  },
+  "overall_passed": true,
+  "summary": {
+    "passed": true,
+    "checks_total": 8,
+    "checks_passed": 8,
+    "checks_failed": 0,
+    "failed_checks": []
+  }
+}
