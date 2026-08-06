@@ -2,8 +2,8 @@
   {
     "id": "q1",
     "question_type": "summary",
-    "question": "What is the main contribution or topic of the paper titled \"Hi\u2010 RAG : A Hierarchical Retrieval\u2010Augmented Generation Framework for Scalable and Generalisable Tool Selection in Large Language Model Agents\"?",
-    "ground_truth": "ABSTRACT As tool repositories for Large Language Model (LLM) agents grow from dozens to hundreds of endpoints, flat retrieval paradigms that treat the repository as an unstructured list suffer from context overload, cross\u2010domain semantic collision and degraded selection accuracy.",
+    "question": "What is the main contribution or topic of the paper titled \"Hi‐ RAG : A Hierarchical Retrieval‐Augmented Generation Framework for Scalable and Generalisable Tool Selection in Large Language Model Agents\"?",
+    "ground_truth": "ABSTRACT As tool repositories for Large Language Model (LLM) agents grow from dozens to hundreds of endpoints, flat retrieval paradigms that treat the repository as an unstructured list suffer from context overload, cross‐domain semantic collision and degraded selection accuracy.",
     "ground_truth_doc_ids": [
       "10.1111/exsy.70341"
     ]
@@ -21,7 +21,7 @@
     "id": "q3",
     "question_type": "summary",
     "question": "What is the main contribution or topic of the paper titled \"An Exploratory Study of Agentic Retrieval Augmented Generation for Mental Health Oriented Language Models\"?",
-    "ground_truth": "Mental health conditions affect over one billion individuals globally and remain challenging to assess accurately due to fragmented clinical data and subjective evaluation methods.",
+    "ground_truth": "Large language models (LLMs) show potential in mental health support but face issues like hallucinations and standard retrieval-augmented generation (RAG) limits in complex scenarios.",
     "ground_truth_doc_ids": [
       "10.32473/flairs.39.1.141782"
     ]
@@ -38,8 +38,8 @@
   {
     "id": "q5",
     "question_type": "authors",
-    "question": "Who are the authors of the paper titled \"\u0421\u043d\u0438\u0436\u0435\u043d\u0438\u0435 \u0440\u0438\u0441\u043a\u043e\u0432 \u043f\u0440\u0438\u043c\u0435\u043d\u0435\u043d\u0438\u044f LLM (Large Language Model) \u0432 \u0441\u0444\u0435\u0440\u0435 \u044d\u043a\u043e\u043d\u043e\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u043f\u0440\u0435\u0434\u043f\u0440\u0438\u044f\u0442\u0438\u0439 \u043c\u043e\u043b\u043e\u0447\u043d\u043e\u0439 \u043f\u0440\u043e\u043c\u044b\u0448\u043b\u0435\u043d\u043d\u043e\u0441\u0442\u0438 \u043d\u0430 \u043e\u0441\u043d\u043e\u0432\u0435 \u043f\u043e\u0434\u0445\u043e\u0434\u0430 RAG (Retrieval-Augmented Generation)\"?",
-    "ground_truth": "\u0418.\u0412. \u0415\u0440\u043c\u0430\u043a\u043e\u0432, \u0412.\u0412. \u0424\u0438\u043b\u0430\u0442\u043e\u0432",
+    "question": "Who are the authors of the paper titled \"Снижение рисков применения LLM (Large Language Model) в сфере экономической безопасности предприятий молочной промышленности на основе подхода RAG (Retrieval-Augmented Generation)\"?",
+    "ground_truth": "И.В. Ермаков, В.В. Филатов",
     "ground_truth_doc_ids": [
       "10.47576/2949-1894.2026.7.7.023"
     ]
