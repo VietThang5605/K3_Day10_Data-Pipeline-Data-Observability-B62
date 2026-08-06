@@ -6,63 +6,78 @@
 
 ## Những phần đã implement
 
-- Đã implement hàm `build_clean_dataframe(records, run_date)`.
-- Chuẩn hóa các trường text:
-  - Xóa khoảng trắng thừa.
+- Implement hàm `build_clean_dataframe(records, run_date)`.
+- Chuẩn hóa text:
   - Decode HTML entities.
-  - Loại bỏ thẻ HTML/JATS trong abstract.
-- Chuẩn hóa các trường dạng list:
+  - Xóa thẻ HTML/JATS.
+  - Xóa khoảng trắng thừa.
+- Chuẩn hóa list:
   - Làm sạch `authors`.
   - Làm sạch `categories`.
-  - Xóa giá trị trùng trong từng list nhưng vẫn giữ thứ tự ban đầu.
-- Parse các trường ngày:
+  - Xóa giá trị trùng trong list nhưng vẫn giữ thứ tự.
+- Parse ngày:
   - Parse `published`.
   - Parse `updated`.
   - Chuyển ngày hợp lệ về định dạng `YYYY-MM-DD`.
 - Tính freshness:
-  - Thêm cột `age_days` dựa trên công thức `run_date - published`.
-- Thêm các cột hỗ trợ:
+  - Thêm `age_days = run_date - published`.
+- Tạo các cột hỗ trợ:
   - `authors_joined`
   - `categories_joined`
   - `summary_chars`
+  - `title_for_embedding`
+  - `title_language`
+  - `language`
   - `text_for_embedding`
-- Lọc các record không hợp lệ:
+- Lọc record lỗi:
   - Thiếu `paper_id`.
   - Thiếu `title`.
   - Thiếu `summary`.
-  - `published` không parse được thành ngày hợp lệ.
-- Xóa record trùng theo `paper_id`.
-- Sắp xếp output theo `published` mới nhất, sau đó `updated` mới nhất, rồi `paper_id`.
-- Thêm `df.attrs["cleaning_report"]` để lưu số liệu truy vết trong quá trình cleaning.
+  - `published` không hợp lệ.
+- Drop duplicate theo `paper_id`.
+- Sort output theo `published` mới nhất, sau đó `updated` mới nhất, rồi `paper_id`.
+- Lưu count truy vết trong `df.attrs["cleaning_report"]`.
 
-## Xử lý lỗi category
+## Xử lý category rỗng
 
-Các record Crossref hiện tại có `categories` rỗng, nên bản clean đầu tiên tạo ra `categories_joined` rỗng và `primary_category = unknown` cho tất cả các dòng.
+Raw data hiện có nhiều record không có `categories`, khiến `categories_joined` bị rỗng và khi đọc CSV có thể thành `NaN`.
 
-Để xử lý vấn đề này, đã thêm bước suy luận category dự phòng:
+Đã thêm fallback suy luận category từ `title + summary`.
 
-- Nếu record không có category từ source, category sẽ được suy luận từ `title + summary`.
-- Các nhóm category dựa trên keyword gồm:
-  - `Retrieval-Augmented Generation`
-  - `Agentic AI`
-  - `Healthcare AI`
-  - `Knowledge Graphs`
-  - `Large Language Models`
-  - `Governance`
-  - `Finance`
-  - `Education`
-- `primary_category` sẽ được lấy từ category suy luận nếu giá trị từ source bị thiếu hoặc là `unknown`.
+Các nhóm category đang dùng:
+
+- `Retrieval-Augmented Generation`
+- `Agentic AI`
+- `Healthcare AI`
+- `Knowledge Graphs`
+- `Large Language Models`
+- `Governance`
+- `Finance`
+- `Education`
+
+Nếu `primary_category` bị thiếu hoặc là `unknown`, hệ thống sẽ lấy category đầu tiên sau khi suy luận.
+
+## Drop bài không thuộc hệ chữ Latin
+
+Raw data có bài chứa nội dung tiếng Nga. Để tránh nhiễu embedding, cleaning sẽ drop record nếu `title`, raw `summary` hoặc `authors` có từ 5 chữ cái trở lên không thuộc hệ chữ Latin.
+
+Rule này không drop các bài chỉ có ký hiệu lẻ như chữ Hy Lạp trong công thức hoặc thống kê.
+
+Ngoài ra cleaner vẫn có logic tách abstract thành nhiều block và ưu tiên block tiếng Anh cho `summary`.
 
 ## Các cột output
 
-Dataframe sau cleaning hiện có các cột:
+Dataframe sau cleaning có các cột:
 
 - `paper_id`
 - `title`
+- `title_for_embedding`
+- `title_language`
 - `summary`
 - `authors`
 - `categories`
 - `primary_category`
+- `language`
 - `published`
 - `updated`
 - `age_days`
@@ -74,37 +89,38 @@ Dataframe sau cleaning hiện có các cột:
 - `pdf_url`
 - `comment`
 
-## Kết quả chạy thử
+## Kết quả kiểm tra gần nhất
 
-Hàm cleaning đã được import và chạy thử với file:
-
-- `data/raw/crossref_records.json`
-
-Các artifact clean đã được tạo lại:
-
-- `data/clean/papers_clean.csv`
-- `data/clean/papers_clean.json`
-
-Kết quả kiểm tra mới nhất:
+Khi chạy với `data/raw/crossref_records.json`:
 
 ```text
-records_clean = 24
+records_in = 24
+records_clean = 23
+non_latin_record = 1
 empty_categories_joined = 0
 csv_categories_nan = 0
-unknown_primary_category = 0
+rows_title_contains_cyrillic = 0
+rows_summary_contains_cyrillic = 0
+rows_text_for_embedding_contains_cyrillic = 0
 ```
 
-Phân bố `primary_category`:
+Record bị drop:
 
 ```text
-Retrieval-Augmented Generation    14
+10.47576/2949-1894.2026.7.7.023
+```
+
+Phân bố `primary_category` sau clean:
+
+```text
+Retrieval-Augmented Generation    13
 Agentic AI                         5
 Healthcare AI                      4
 Knowledge Graphs                   1
 ```
 
-## Các vấn đề data còn lại
+## Ghi chú còn lại
 
-- `pdf_url` vẫn bị thiếu ở nhiều record vì source data không phải lúc nào cũng cung cấp link PDF.
-- Một vài record có `updated` sớm hơn `published`; khả năng cao do bước ingestion đang map field ngày từ Crossref chưa đúng ý nghĩa.
-- CSV không giữ được kiểu list thật cho `authors` và `categories`; file JSON vẫn giữ hai field này dưới dạng list.
+- `pdf_url` vẫn có thể thiếu vì Crossref không luôn cung cấp link PDF.
+- Một số record có thể có `updated` sớm hơn `published`; vấn đề này nên kiểm tra tiếp ở bước ingestion.
+- CSV không giữ kiểu list thật cho `authors` và `categories`; JSON giữ đúng dạng list.
