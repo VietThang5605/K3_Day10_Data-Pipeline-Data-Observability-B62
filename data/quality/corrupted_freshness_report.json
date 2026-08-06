@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-08-06T05:20:20+00:00",
+  "freshness_threshold_days": 180,
+  "age_days_column": "age_days",
+  "latest_published": "2026-08-01",
+  "oldest_published": "2000-01-01",
+  "missing_published": 0,
+  "invalid_published": 0,
+  "age_days_column_present": true,
+  "total_rows": 22,
+  "fresh_rows": 20,
+  "stale_rows": 2,
+  "missing_age_days": 0,
+  "invalid_age_days": 0,
+  "future_dated_rows": 0,
+  "is_fresh": false,
+  "status": "stale",
+  "message": "One or more rows are older than the configured freshness threshold."
+}
