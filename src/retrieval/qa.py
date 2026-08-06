@@ -6,6 +6,7 @@ import re
 from core.config import Settings
 from core.utils import first_sentence
 from retrieval.index import LocalEmbeddingIndex, SearchResult
+from retrieval.llm import build_llm
 
 
 @dataclass(frozen=True)
@@ -17,16 +18,41 @@ class AnswerResult:
     retrieved_titles: list[str]
 
 
-def _extract_answer(question: str, top_result: SearchResult) -> str:
+def _extract_answer_heuristic(question: str, top_result: SearchResult) -> str:
     lowered = question.lower()
     metadata = top_result.metadata
     if "who authored" in lowered or "list the authors" in lowered:
-        return metadata["authors_joined"]
+        return metadata.get("authors_joined", "")
     if "when was" in lowered or "publication date" in lowered or "published on" in lowered:
-        return metadata["published"]
+        return metadata.get("published", "")
     if "what categories" in lowered:
-        return metadata["categories_joined"]
-    return first_sentence(metadata["summary"])
+        return metadata.get("categories_joined", "")
+    return first_sentence(metadata.get("summary", ""))
+
+
+def _generate_answer_with_llm(question: str, retrieved_results: list[SearchResult], settings: Settings) -> str:
+    if not retrieved_results:
+        return "I don't know from the indexed corpus."
+    try:
+        llm = build_llm(settings=settings, temperature=0.0)
+        context_blocks = []
+        for res in retrieved_results:
+            context_blocks.append(f"Title: {res.title}\nContent: {res.content}")
+        context_str = "\n\n---\n\n".join(context_blocks)
+
+        prompt = f"""You are a precise research assistant answering questions about indexed scholarly papers.
+Answer the user's question based strictly on the provided retrieved paper contexts. Be concise, direct, and factual. Do not extrapolate beyond the retrieved facts.
+
+Retrieved Contexts:
+{context_str}
+
+Question: {question}
+
+Answer:"""
+        response = llm.invoke(prompt)
+        return getattr(response, "content", str(response)).strip()
+    except Exception:
+        return _extract_answer_heuristic(question, retrieved_results[0])
 
 
 def answer_question(question: str, settings: Settings, index: LocalEmbeddingIndex, top_k: int | None = None) -> AnswerResult:
@@ -46,7 +72,7 @@ def answer_question(question: str, settings: Settings, index: LocalEmbeddingInde
     if not retrieved:
         answer = "I don't know from the indexed corpus."
     else:
-        answer = _extract_answer(question, retrieved[0])
+        answer = _generate_answer_with_llm(question, retrieved, settings)
     return AnswerResult(
         question=question,
         answer=answer,
@@ -54,3 +80,4 @@ def answer_question(question: str, settings: Settings, index: LocalEmbeddingInde
         retrieved_contexts=[item.content for item in retrieved],
         retrieved_titles=[item.title for item in retrieved],
     )
+

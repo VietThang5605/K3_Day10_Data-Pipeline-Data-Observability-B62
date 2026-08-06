@@ -50,6 +50,20 @@ class TestDataCleaning(unittest.TestCase):
                 abs_url="",
                 pdf_url="",
                 comment=""
+            ),
+            # 4. Bản ghi có tiêu đề tiếng Nga (phi Latinh) -> phải bị lọc bỏ
+            PaperRecord(
+                paper_id="10.47576/2949-1894.2026.7.7.023",
+                title="Снижение рисков применения LLM (Large Language Model) в сфере экономической безопасности",
+                summary="This is a long summary for Russian paper that should be filtered out because the title is in Russian.",
+                authors=["И.В. Ермаков"],
+                categories=["Finance"],
+                primary_category="Finance",
+                published="2026-08-01",
+                updated="2026-08-01",
+                abs_url="",
+                pdf_url="",
+                comment=""
             )
         ]
 
@@ -79,6 +93,7 @@ class TestDataCleaning(unittest.TestCase):
         report = df.attrs.get("cleaning_report", {})
         self.assertEqual(report["filtered"]["short_summary"], 1)
         self.assertEqual(report["filtered"]["missing_title"], 1)
+        self.assertEqual(report["filtered"]["non_english_script"], 1)
 
 
 if __name__ == "__main__":

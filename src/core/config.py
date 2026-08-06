@@ -44,6 +44,8 @@ class Paths:
 class Settings:
     llm_provider: str
     model_name: str
+    judge_llm_provider: str
+    judge_llm_model: str
     google_api_key: str | None
     openai_api_key: str | None
     anthropic_api_key: str | None
@@ -108,9 +110,16 @@ def load_settings(project_dir: Path | None = None) -> Settings:
         comparison_report=data_dir / "reports" / "corruption_report.md",
     )
 
+    llm_provider = os.getenv("LLM_PROVIDER", "gemini")
+    model_name = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+    judge_llm_provider = os.getenv("JUDGE_LLM_PROVIDER", llm_provider)
+    judge_llm_model = os.getenv("JUDGE_LLM_MODEL", model_name)
+
     return Settings(
-        llm_provider=os.getenv("LLM_PROVIDER", "gemini"),
-        model_name=os.getenv("LLM_MODEL", "gemini-2.5-flash"),
+        llm_provider=llm_provider,
+        model_name=model_name,
+        judge_llm_provider=judge_llm_provider,
+        judge_llm_model=judge_llm_model,
         google_api_key=os.getenv("GOOGLE_API_KEY"),
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
@@ -137,6 +146,15 @@ def load_settings(project_dir: Path | None = None) -> Settings:
 
 def normalized_provider(settings: Settings) -> str:
     provider = settings.llm_provider.strip().lower().replace(" ", "").replace("-", "")
+    if provider == "anthorpic":
+        return "anthropic"
+    if provider == "customllm":
+        return "custom"
+    return provider
+
+
+def normalized_judge_provider(settings: Settings) -> str:
+    provider = settings.judge_llm_provider.strip().lower().replace(" ", "").replace("-", "")
     if provider == "anthorpic":
         return "anthropic"
     if provider == "customllm":
@@ -171,3 +189,33 @@ def require_llm_credentials(settings: Settings) -> None:
     raise RuntimeError(
         "Unsupported LLM_PROVIDER. Expected one of: openai, gemini, anthropic, openrouter, ollama, custom."
     )
+
+
+def require_judge_llm_credentials(settings: Settings) -> None:
+    provider = normalized_judge_provider(settings)
+    if provider == "gemini":
+        if settings.google_api_key:
+            return
+        raise RuntimeError("GOOGLE_API_KEY is required when JUDGE_LLM_PROVIDER=gemini.")
+    if provider == "openai":
+        if settings.openai_api_key:
+            return
+        raise RuntimeError("OPENAI_API_KEY is required when JUDGE_LLM_PROVIDER=openai.")
+    if provider == "anthropic":
+        if settings.anthropic_api_key:
+            return
+        raise RuntimeError("ANTHROPIC_API_KEY is required when JUDGE_LLM_PROVIDER=anthropic.")
+    if provider == "openrouter":
+        if settings.openrouter_api_key:
+            return
+        raise RuntimeError("OPENROUTER_API_KEY is required when JUDGE_LLM_PROVIDER=openrouter.")
+    if provider == "ollama":
+        return
+    if provider == "custom":
+        if settings.custom_llm_base_url:
+            return
+        raise RuntimeError("CUSTOM_LLM_BASE_URL is required when JUDGE_LLM_PROVIDER=custom.")
+    raise RuntimeError(
+        "Unsupported JUDGE_LLM_PROVIDER. Expected one of: openai, gemini, anthropic, openrouter, ollama, custom."
+    )
+
