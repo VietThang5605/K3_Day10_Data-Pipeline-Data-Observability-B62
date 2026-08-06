@@ -20,18 +20,19 @@ class AnswerResult:
 def _extract_answer(question: str, top_result: SearchResult) -> str:
     lowered = question.lower()
     metadata = top_result.metadata
-    if "who authored" in lowered or "list the authors" in lowered:
-        return metadata["authors_joined"]
-    if "when was" in lowered or "publication date" in lowered or "published on" in lowered:
-        return metadata["published"]
-    if "what categories" in lowered:
-        return metadata["categories_joined"]
-    return first_sentence(metadata["summary"])
+    if any(phrase in lowered for phrase in ("who authored", "who wrote", "author", "authors")):
+        return str(metadata.get("authors_joined", ""))
+    if any(phrase in lowered for phrase in ("when was", "publication date", "published on", "published date")):
+        return str(metadata.get("published", ""))
+    if any(phrase in lowered for phrase in ("category", "categories", "research topics", "subject", "subjects")):
+        return str(metadata.get("categories_joined", ""))
+    return first_sentence(str(metadata.get("summary", "")))
 
 
 def answer_question(question: str, settings: Settings, index: LocalEmbeddingIndex, top_k: int | None = None) -> AnswerResult:
-    title_match = re.search(r"'([^']+)'", question)
-    exact = index.lookup(title_match.group(1)) if title_match else None
+    # The frozen test set wraps titles in double quotes; accept either quote style.
+    title_match = re.search(r"['\"]([^'\"]+)['\"]", question)
+    exact = index.lookup(title_match.group(1).strip()) if title_match else None
     retrieved = index.search(question, top_k=top_k)
     if exact:
         exact_result = SearchResult(
