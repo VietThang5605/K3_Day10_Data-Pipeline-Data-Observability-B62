@@ -137,6 +137,7 @@ def main():
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("🔗 **Observability Dashboard**: [Open FastAPI Dashboard](http://localhost:8000)")
+    st.sidebar.markdown("📐 **Architecture Blueprint**: [View System Topology](http://localhost:8000/architecture)")
 
     # Sidebar Explanation of Score Calculation
     st.sidebar.markdown("---")

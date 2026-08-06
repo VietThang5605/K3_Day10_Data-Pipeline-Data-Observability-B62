@@ -135,6 +135,15 @@ def serve_index():
     return "<h1>Data Observability Dashboard UI</h1>"
 
 
+@app.get("/architecture", response_class=HTMLResponse)
+def serve_architecture():
+    arch_html_path = WEB_DIR / "architecture.html"
+    if arch_html_path.exists():
+        with open(arch_html_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>System Architecture Blueprint</h1>"
+
+
 app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 
 
