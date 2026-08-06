@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 import html
 import re
+import unicodedata
 
 import pandas as pd
 
@@ -15,6 +16,60 @@ def _normalize_text(value: object) -> str:
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def _text_blocks(value: object) -> list[str]:
+    text = "" if value is None else str(value)
+    text = html.unescape(text)
+    text = re.sub(r"</(?:jats:)?(?:p|sec|title)>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return [block for block in (_normalize_text(block) for block in text.splitlines()) if block]
+
+
+def _english_letter_ratio(text: str) -> float:
+    letters = [char for char in text if char.isalpha()]
+    if not letters:
+        return 0.0
+    latin_letters = [char for char in letters if "a" <= char.casefold() <= "z"]
+    return len(latin_letters) / len(letters)
+
+
+def _non_latin_letter_count(text: str) -> int:
+    return sum(
+        1
+        for char in text
+        if char.isalpha() and "LATIN" not in unicodedata.name(char, "")
+    )
+
+
+def _has_non_latin_text(text: str) -> bool:
+    return _non_latin_letter_count(text) >= 5
+
+
+def _normalize_summary(value: object) -> tuple[str, int, str]:
+    blocks = _text_blocks(value)
+    if not blocks:
+        return "", 0, "unknown"
+
+    english_blocks = [block for block in blocks if _english_letter_ratio(block) >= 0.75]
+    if english_blocks:
+        removed_blocks = len(blocks) - len(english_blocks)
+        return _normalize_text(" ".join(english_blocks)), removed_blocks, "en"
+
+    summary = _normalize_text(" ".join(blocks))
+    language = "non-en" if _english_letter_ratio(summary) < 0.5 else "mixed"
+    return summary, 0, language
+
+
+def _first_sentence(text: str) -> str:
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    return sentences[0].strip() if sentences else text.strip()
+
+
+def _title_for_embedding(title: str, summary: str) -> tuple[str, str]:
+    if _english_letter_ratio(title) >= 0.5:
+        return title, "en"
+    return _first_sentence(summary), "non-en"
 
 
 def _normalize_items(values: list[str] | None) -> list[str]:
@@ -70,10 +125,10 @@ def _format_date(value: pd.Timestamp | pd.NaT) -> str:
 
 def _build_embedding_text(row: dict[str, object]) -> str:
     parts = [
-        f"Title: {row['title']}",
+        f"Title: {row['title_for_embedding']}",
         f"Summary: {row['summary']}",
     ]
-    if row["authors_joined"]:
+    if row["authors_joined"] and _english_letter_ratio(str(row["authors_joined"])) >= 0.5:
         parts.append(f"Authors: {row['authors_joined']}")
     if row["categories_joined"]:
         parts.append(f"Categories: {row['categories_joined']}")
@@ -110,12 +165,16 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
         "missing_title": 0,
         "missing_summary": 0,
         "invalid_published": 0,
+        "non_english_summary_blocks_removed": 0,
+        "non_latin_record": 0,
     }
 
     for record in records:
         paper_id = _normalize_text(record.paper_id).lower()
         title = _normalize_text(record.title)
-        summary = _normalize_text(record.summary)
+        summary, removed_summary_blocks, language = _normalize_summary(record.summary)
+        title_for_embedding, title_language = _title_for_embedding(title, summary)
+        filter_counts["non_english_summary_blocks_removed"] += removed_summary_blocks
         published_date = _parse_date(record.published)
 
         if not paper_id:
@@ -129,6 +188,10 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
             continue
         if pd.isna(published_date):
             filter_counts["invalid_published"] += 1
+            continue
+        raw_text_for_script_check = " ".join([title, _normalize_text(record.summary), " ".join(record.authors)])
+        if _has_non_latin_text(raw_text_for_script_check):
+            filter_counts["non_latin_record"] += 1
             continue
 
         authors = _normalize_items(record.authors)
@@ -145,10 +208,13 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
         row: dict[str, object] = {
             "paper_id": paper_id,
             "title": title,
+            "title_for_embedding": title_for_embedding,
+            "title_language": title_language,
             "summary": summary,
             "authors": authors,
             "categories": categories,
             "primary_category": primary_category,
+            "language": language,
             "published": _format_date(published_date),
             "updated": _format_date(updated_date),
             "abs_url": _normalize_text(record.abs_url),
@@ -165,10 +231,13 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
     columns = [
         "paper_id",
         "title",
+        "title_for_embedding",
+        "title_language",
         "summary",
         "authors",
         "categories",
         "primary_category",
+        "language",
         "published",
         "updated",
         "age_days",
