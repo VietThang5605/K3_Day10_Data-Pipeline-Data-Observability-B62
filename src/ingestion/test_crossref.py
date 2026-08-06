@@ -47,6 +47,8 @@ class TestCrossrefIngestion(unittest.TestCase):
         self.settings = Settings(
             llm_provider="mock",
             model_name="mock",
+            judge_llm_provider="mock",
+            judge_llm_model="mock",
             google_api_key=None,
             openai_api_key=None,
             anthropic_api_key=None,
