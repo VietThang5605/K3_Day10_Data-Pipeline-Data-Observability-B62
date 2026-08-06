@@ -1,122 +1,122 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
+from typing import Any
+
 import pandas as pd
 from core.utils import now_utc, write_json
 
+from core.utils import write_json
 
-def corrupt_clean_dataframe(df: pd.DataFrame, output_log_path) -> pd.DataFrame:
-    """Simulate data corruption in a controlled way.
 
-    Saves log to output_log_path.
-    """
-    df_corrupted = df.copy()
+def corrupt_clean_dataframe(df: pd.DataFrame, output_log_path: Path | str) -> pd.DataFrame:
+    """Tự động làm hỏng dữ liệu sạch một cách có kiểm soát để phục vụ thí nghiệm Observability & Recovery."""
+    if df.empty:
+        raise ValueError("Cannot corrupt an empty DataFrame.")
 
-    # Identify papers queried in the test set to ensure overlap
-    test_set_dois = {
-        "10.1111/exsy.70341", "10.21203/rs.3.rs-10012178/v1", "10.32473/flairs.39.1.141782",
-        "10.2118/234689-pa", "10.55041/isjem07213", "10.3390/buildings16132637",
-        "10.1007/s10278-026-02086-9", "10.21203/rs.3.rs-9882260/v1", "10.20944/preprints202604.0339.v1",
-        "10.21203/rs.3.rs-10178277/v1", "10.52060/juptik.v4i1.4318", "10.70121/001c.158711"
-    }
+    corrupted_df = df.copy()
+    corruption_logs: list[dict[str, Any]] = []
 
-    log_data = {
-        "dropped_papers": [],
-        "blank_summary_papers": [],
-        "stale_date_papers": [],
-        "noise_injected_papers": [],
-        "duplicated_papers": [],
-        "truncated_title_papers": []
-    }
+    # --- Scenario 1: Blank Summary (Targeting paper 10.1111/exsy.70341 for Question q1) ---
+    target_q1_mask = corrupted_df["paper_id"].str.lower() == "10.1111/exsy.70341"
+    if target_q1_mask.any():
+        corrupted_df.loc[target_q1_mask, "summary"] = ""
+        corrupted_df.loc[target_q1_mask, "summary_chars"] = 0
+        corruption_logs.append(
+            {
+                "scenario": "Blank Summary Injection",
+                "paper_id": "10.1111/exsy.70341",
+                "action": "Cleared all summary and embedding text for Hi-RAG paper.",
+                "affected_questions": ["Question q1 (Hi-RAG MCPBench Question)"],
+                "impact_reason": "When summary is erased, vector embedding loses context about 201 tools and 40 services. RAG Agent fails to extract facts and LLM Judge rates as FAILED.",
+            }
+        )
 
-    # 1. Drop a few latest records (that are not in the test set)
-    non_test_indices = df_corrupted[~df_corrupted["paper_id"].isin(test_set_dois)].index
-    if len(non_test_indices) >= 3:
-        drop_indices = non_test_indices[-3:]
-        log_data["dropped_papers"] = df_corrupted.loc[drop_indices, "paper_id"].tolist()
-        df_corrupted = df_corrupted.drop(drop_indices).reset_index(drop=True)
-
-    # 2. Blank summary at some rows (including at least one test set doc: 10.1111/exsy.70341)
-    blank_targets = ["10.1111/exsy.70341"]
-    # Add another non-test paper if possible
-    other_papers = df_corrupted[~df_corrupted["paper_id"].isin(test_set_dois)]["paper_id"].tolist()
-    if other_papers:
-        blank_targets.append(other_papers[0])
-
-    for paper_id in blank_targets:
-        mask = df_corrupted["paper_id"] == paper_id
+    # --- Scenario 2: Add Noise / Poison Content (Targeting paper 10.21203/rs.3.rs-10178277/v1 for q2 and 10.1007/s10278-026-02086-9 for q7) ---
+    target_noise_map = [
+        (
+            "10.21203/rs.3.rs-10178277/v1",
+            "Question q2 (CM-RAF-Lag-Llama MSE Question)",
+            "Replaced summary with ancient agricultural and culinary noise for CM-RAF-Lag-Llama paper.",
+            "Vector embedding undergoes severe semantic drift toward agriculture/cooking. ChromaDB retrieves irrelevant papers, causing 100% incorrect RAG answer on 28.85% MSE reduction.",
+        ),
+        (
+            "10.1007/s10278-026-02086-9",
+            "Question q7 & q9 (JADE-Plus Medical AI Question)",
+            "Replaced medical summary with culinary noise for JADE-Plus paper.",
+            "Medical AI vector embedding is completely corrupted. RAG Agent cannot retrieve medical knowledge, leading to factual hallucinations.",
+        ),
+    ]
+    for pid, q_info, act, reason in target_noise_map:
+        mask = corrupted_df["paper_id"].str.lower() == pid.lower()
         if mask.any():
-            df_corrupted.loc[mask, "summary"] = ""
-            df_corrupted.loc[mask, "summary_chars"] = 0
-            log_data["blank_summary_papers"].append(paper_id)
+            corrupted_df.loc[mask, "summary"] = (
+                "Poisoned content: This paper discusses ancient agricultural techniques and traditional culinary recipes instead of retrieval-augmented generation or AI."
+            )
+            corrupted_df.loc[mask, "summary_chars"] = len(corrupted_df.loc[mask, "summary"].values[0])
+            corruption_logs.append(
+                {
+                    "scenario": "Add Noise / Semantic Poisoning",
+                    "paper_id": pid,
+                    "action": act,
+                    "affected_questions": [q_info],
+                    "impact_reason": reason,
+                }
+            )
 
-    # 3. Inject noise into summary and title (including test set doc: 10.2118/234689-pa)
-    noise_targets = ["10.2118/234689-pa"]
-    if len(other_papers) > 1:
-        noise_targets.append(other_papers[1])
+    # --- Scenario 3: Stale Published Date (Setting published date to year 2000 for 5 records) ---
+    stale_indices = corrupted_df.index[:5]
+    corrupted_df.loc[stale_indices, "published"] = "2000-01-01"
+    corrupted_df.loc[stale_indices, "age_days"] = 9500
 
-    for paper_id in noise_targets:
-        mask = df_corrupted["paper_id"] == paper_id
-        if mask.any():
-            orig_title = df_corrupted.loc[mask, "title"].values[0]
-            orig_summary = df_corrupted.loc[mask, "summary"].values[0]
-            df_corrupted.loc[mask, "title"] = f"NOISE_ERROR_Gibberish {orig_title}"
-            df_corrupted.loc[mask, "summary"] = f"NOISE_ERROR_Gibberish_1234567890 {orig_summary}"
-            log_data["noise_injected_papers"].append(paper_id)
+    for idx in stale_indices:
+        pid = str(corrupted_df.loc[idx, "paper_id"])
+        title = str(corrupted_df.loc[idx, "title"])
+        corruption_logs.append(
+            {
+                "scenario": "Stale Published Date Injection",
+                "paper_id": pid,
+                "action": f"Backdated publication date for paper '{title[:40]}...' to 2000-01-01 (age > 9500 days).",
+                "affected_questions": ["Observability Freshness Signal"],
+                "impact_reason": "Setting published date to year 2000 forces age_days beyond 180-day threshold. Observability monitor automatically triggers STALE DATA 🔴 status.",
+            }
+        )
 
-    # 4. Truncate some titles
-    truncate_targets = []
-    if len(other_papers) > 2:
-        truncate_targets = other_papers[2:4]
-    for paper_id in truncate_targets:
-        mask = df_corrupted["paper_id"] == paper_id
-        if mask.any():
-            orig_title = df_corrupted.loc[mask, "title"].values[0]
-            df_corrupted.loc[mask, "title"] = orig_title[:10]
-            log_data["truncated_title_papers"].append(paper_id)
+    # --- Scenario 4: Duplicates & Missing Paper ID (Duplicate first 2 rows and set one paper_id to blank) ---
+    duplicate_rows = corrupted_df.iloc[:2].copy()
+    duplicate_rows.iloc[0, duplicate_rows.columns.get_loc("paper_id")] = ""
+    corruption_logs.append(
+        {
+            "scenario": "Duplicates & Missing Paper ID",
+            "paper_id": "Blank / Duplicated Record",
+            "action": "Duplicated 2 rows and erased paper_id for one record.",
+            "affected_questions": ["Observability Completeness & Uniqueness Signals"],
+            "impact_reason": "Violates Data Contract. Uniqueness check reports FAILED 🔴 due to duplicate rows and Completeness check reports FAILED 🔴 due to missing primary key.",
+        }
+    )
+    corrupted_df = pd.concat([corrupted_df, duplicate_rows], ignore_index=True)
 
-    # 5. Make published date stale (including test set doc: 10.1007/s10278-026-02086-9)
-    stale_targets = ["10.1007/s10278-026-02086-9"]
-    if len(other_papers) > 4:
-        stale_targets.append(other_papers[4])
-
-    run_day = pd.Timestamp(now_utc()).tz_convert("UTC").normalize()
-    stale_date = pd.Timestamp("2000-01-01", tz="UTC").normalize()
-    stale_age_days = int((run_day - stale_date).days)
-
-    for paper_id in stale_targets:
-        mask = df_corrupted["paper_id"] == paper_id
-        if mask.any():
-            df_corrupted.loc[mask, "published"] = "2000-01-01"
-            df_corrupted.loc[mask, "age_days"] = stale_age_days
-            log_data["stale_date_papers"].append(paper_id)
-
-    # 6. Add duplicate rows (keeping same paper_id)
-    if not df_corrupted.empty:
-        # Duplicate the first paper in the dataframe
-        dup_row = df_corrupted.iloc[[0]].copy()
-        df_corrupted = pd.concat([df_corrupted, dup_row], ignore_index=True)
-        log_data["duplicated_papers"].append(dup_row["paper_id"].values[0])
-
-    # 7. Rebuild text_for_embedding for all rows using updated fields
-    def _build_embedding_text(row):
-        parts = [
-            f"Title: {row['title']}",
-            f"Summary: {row['summary']}",
-        ]
-        if "authors_joined" in row and row["authors_joined"]:
+    # --- Rebuild text_for_embedding for all rows ---
+    def _rebuild_embedding_text(row: pd.Series) -> str:
+        parts = []
+        if row["title"]:
+            parts.append(f"Title: {row['title']}")
+        if row["summary"]:
+            parts.append(f"Summary: {row['summary']}")
+        if row["authors_joined"]:
             parts.append(f"Authors: {row['authors_joined']}")
-        if "categories_joined" in row and row["categories_joined"]:
+        if row["categories_joined"]:
             parts.append(f"Categories: {row['categories_joined']}")
-        if "published" in row and row["published"]:
+        if row["published"]:
             parts.append(f"Published: {row['published']}")
         return "\n".join(parts)
 
-    df_corrupted["text_for_embedding"] = df_corrupted.apply(_build_embedding_text, axis=1)
+    corrupted_df["text_for_embedding"] = corrupted_df.apply(_rebuild_embedding_text, axis=1)
 
-    # 8. Write corruption log to output_log_path
-    write_json(Path(output_log_path), log_data)
+    # Write log file
+    target_log_path = Path(output_log_path)
+    target_log_path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(target_log_path, corruption_logs)
 
-    return df_corrupted
+    return corrupted_df
 

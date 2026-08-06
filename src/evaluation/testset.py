@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -21,102 +20,109 @@ def _truncate(text: str, max_chars: int = 300) -> str:
     return text[:max_chars].rstrip() + ("..." if len(text) > max_chars else "")
 
 
-def build_test_set(df: pd.DataFrame, output_path) -> list[dict[str, Any]]:
-    """Tạo bộ evaluation set cố định (Frozen Evaluation Set) từ cleaned dataframe."""
-    output_path = Path(output_path)
+def build_test_set(df: pd.DataFrame, output_path: Path | str) -> list[dict[str, Any]]:
+    """Build the Frozen Evaluation Test Set in English from the cleaned dataframe and save to JSON."""
+    if df.empty:
+        raise ValueError("DataFrame cleaned data is empty. Cannot build test set.")
 
-    if len(df) < _MIN_DOCS:
-        raise ValueError(
-            f"Cần ít nhất {_MIN_DOCS} document để tạo test set, chỉ có {len(df)}."
-        )
+    existing_paper_ids = set(df["paper_id"].str.lower().unique())
 
-    required_cols = {"paper_id", "title", "summary", "authors_joined",
-                     "categories_joined", "primary_category", "published"}
-    missing = required_cols - set(df.columns)
-    if missing:
-        raise ValueError(f"DataFrame thiếu các cột: {missing}")
+    # Golden Test Set of 10 English questions mapped directly to clean paper records
+    samples: list[dict[str, Any]] = [
+        # --- Group 1: factual (2 items) ---
+        {
+            "id": "q1",
+            "question_type": "factual",
+            "question": "In the Hi-RAG paper, how many tools and real-enterprise services are included in the MCPBench benchmark?",
+            "ground_truth": "The MCPBench benchmark comprises 201 tools across 40 real-enterprise services.",
+            "ground_truth_doc_ids": ["10.1111/exsy.70341"],
+        },
+        {
+            "id": "q2",
+            "question_type": "factual",
+            "question": "In the evaluation on the IDX7 dataset panel, by what percentage does the retrieval component in CM-RAF-Lag-Llama reduce the MSE compared to Lag-Llama alone?",
+            "ground_truth": "The retrieval variant reduces Lag-Llama MSE by 28.85% for the IDX7 panel.",
+            "ground_truth_doc_ids": ["10.21203/rs.3.rs-10178277/v1"],
+        },
 
-    # Lọc bỏ bài viết tiếng Nga/non-English nếu có
-    df = df[~df["paper_id"].astype(str).str.contains("10.47576/2949-1894.2026.7.7.023")].reset_index(drop=True)
+        # --- Group 2: metadata (2 items) ---
+        {
+            "id": "q3",
+            "question_type": "metadata",
+            "question": "Who is the author of the study on adapting LLaMA-2-13B for insurance information delivery in Kenya?",
+            "ground_truth": "The author of the study is AMOS MBEKI NYAGAR.",
+            "ground_truth_doc_ids": ["10.21203/rs.3.rs-9770645/v1"],
+        },
+        {
+            "id": "q4",
+            "question_type": "metadata",
+            "question": "Which authors conducted the bibliometric review of Agentic AI architectures from 2023 to 2025?",
+            "ground_truth": "The bibliometric review was conducted by Ben J. Weber, Clara M. Hofmann, and Amara N. Okoye.",
+            "ground_truth_doc_ids": ["10.63646/kpqm1958"],
+        },
 
-    df = df.sort_values(["published", "paper_id"], ascending=[False, True]).reset_index(drop=True)
-    n = len(df)
-
-    indices_summary    = [0, n // 3, 2 * n // 3]
-    indices_authors    = [1, n // 3 + 1, 2 * n // 3 + 1]
-    indices_date       = [2, n // 3 + 2, 2 * n // 3 + 2]
-    indices_categories = [3, n // 3 + 3, min(2 * n // 3 + 3, n - 1)]
-
-    def _clamp(idx_list: list[int]) -> list[int]:
-        return [min(i, n - 1) for i in idx_list]
-
-    indices_summary    = _clamp(indices_summary)
-    indices_authors    = _clamp(indices_authors)
-    indices_date       = _clamp(indices_date)
-    indices_categories = _clamp(indices_categories)
-
-    test_set: list[dict[str, Any]] = []
-    q_id = 1
-
-    # 1. Summary questions
-    for i in indices_summary:
-        row = df.iloc[i]
-        test_set.append({
-            "id": f"q{q_id}",
+        # --- Group 3: summary (2 items) ---
+        {
+            "id": "q5",
             "question_type": "summary",
-            "question": f"What is the main contribution or topic of the paper titled \"{row['title']}\"?",
-            "ground_truth": _truncate(row["summary"]),
-            "ground_truth_doc_ids": [row["paper_id"]],
-        })
-        q_id += 1
+            "question": "According to the bibliometric review by Ben J. Weber et al., how did the annual output of publications on agentic AI change from 2023 to 2025?",
+            "ground_truth": "Annual output rose sharply from 4 publications in 2023 to 96 in 2024 and reached 710 in 2025 (totaling 810 publications from the Web of Science Core Collection).",
+            "ground_truth_doc_ids": ["10.63646/kpqm1958"],
+        },
+        {
+            "id": "q6",
+            "question_type": "summary",
+            "question": "According to Haopeng Yang's review, at which stages of a RAG-enhanced LLM system can errors leading to hallucination arise?",
+            "ground_truth": "Errors leading to hallucination may arise during query formulation, document retrieval, evidence aggregation, and answer grounding.",
+            "ground_truth_doc_ids": ["10.54254/2753-8818/2026.dl34055"],
+        },
 
-    # 2. Authors questions
-    for i in indices_authors:
-        row = df.iloc[i]
-        authors = row["authors_joined"]
-        if not authors or str(authors).strip() == "":
-            authors = "Unknown"
-        test_set.append({
-            "id": f"q{q_id}",
-            "question_type": "authors",
-            "question": f"Who are the authors of the paper titled \"{row['title']}\"?",
-            "ground_truth": str(authors),
-            "ground_truth_doc_ids": [row["paper_id"]],
-        })
-        q_id += 1
+        # --- Group 4: application (2 items) ---
+        {
+            "id": "q7",
+            "question_type": "application",
+            "question": "What is the primary medical application and objective of the JADE-Plus framework?",
+            "ground_truth": "JADE-Plus is designed for diagnostic decision support in jawbone lesion assessment and automated structured reporting using multimodal agentic RAG and vision-language models.",
+            "ground_truth_doc_ids": ["10.1007/s10278-026-02086-9"],
+        },
+        {
+            "id": "q8",
+            "question_type": "application",
+            "question": "In which specific domain and tasks is the SafeRAG framework applied?",
+            "ground_truth": "SafeRAG is applied in the petroleum geology domain for well log analysis and lithology identification.",
+            "ground_truth_doc_ids": ["10.2118/234689-pa"],
+        },
 
-    # 3. Date questions
-    for i in indices_date:
-        row = df.iloc[i]
-        test_set.append({
-            "id": f"q{q_id}",
-            "question_type": "date",
-            "question": f"When was the paper titled \"{row['title']}\" published?",
-            "ground_truth": str(row["published"]),
-            "ground_truth_doc_ids": [row["paper_id"]],
-        })
-        q_id += 1
+        # --- Group 5: comparative (2 items) ---
+        {
+            "id": "q9",
+            "question_type": "comparative",
+            "question": "What common objective do both JADE-Plus and SafeRAG share when applying RAG in specialized domains?",
+            "ground_truth": "Both frameworks combine RAG with LLMs to mitigate decision risks and enhance diagnostic or analytical accuracy in high-stakes domain-specific applications (JADE-Plus for medical radiology and SafeRAG for petroleum geology).",
+            "ground_truth_doc_ids": ["10.1007/s10278-026-02086-9", "10.2118/234689-pa"],
+        },
+        {
+            "id": "q10",
+            "question_type": "comparative",
+            "question": "Compare the primary goals of RAG integration between AMOS MBEKI NYAGAR's study in Kenya and Sohail Khan's study on Knowledge Graphs.",
+            "ground_truth": "AMOS MBEKI NYAGAR's study uses RAG to ground LLM outputs in regulatory insurance documents for financial inclusion in Kenya, whereas Sohail Khan's study integrates RAG with GNNs and Knowledge Graphs to enable robust multi-hop question answering.",
+            "ground_truth_doc_ids": ["10.21203/rs.3.rs-9770645/v1", "10.22214/ijraset.2026.82233"],
+        },
+    ]
 
-    # 4. Categories questions
-    for i in indices_categories:
-        row = df.iloc[i]
-        cats = row["categories_joined"]
-        if not cats or str(cats).strip() == "":
-            cats = row.get("primary_category", "unknown")
-        test_set.append({
-            "id": f"q{q_id}",
-            "question_type": "categories",
-            "question": f"What are the research topics or categories of the paper titled \"{row['title']}\"?",
-            "ground_truth": str(cats),
-            "ground_truth_doc_ids": [row["paper_id"]],
-        })
-        q_id += 1
+    # Validate that all referenced paper_ids exist in the clean dataset
+    for sample in samples:
+        for doc_id in sample["ground_truth_doc_ids"]:
+            if doc_id.lower() not in existing_paper_ids:
+                raise ValueError(
+                    f"Sample {sample['id']} references paper_id '{doc_id}' which does not exist in clean data."
+                )
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(test_set, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8"
-    )
+    # Write output to JSON
+    target_path = Path(output_path)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(target_path, "w", encoding="utf-8") as f:
+        json.dump(samples, f, indent=2, ensure_ascii=False)
 
-    logger.info("Đã tạo %d câu hỏi và lưu vào '%s'.", len(test_set), output_path)
-    return test_set
+    return samples
+

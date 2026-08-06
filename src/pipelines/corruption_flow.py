@@ -1,118 +1,120 @@
 from __future__ import annotations
 
-import json
+from datetime import UTC, datetime
 from pathlib import Path
+import shutil
+
 import pandas as pd
 
 from core.config import load_settings
-from core.utils import now_utc, read_json, write_csv, write_json
+from core.utils import read_json
 from evaluation.metrics import evaluate_pipeline
 from ingestion.cleaning import build_clean_dataframe
-from ingestion.corruption import corrupt_clean_dataframe
 from ingestion.crossref import load_raw_records
+from ingestion.corruption import corrupt_clean_dataframe
 from observability.quality import build_freshness_report, run_data_quality_checks
 from observability.reporting import generate_corruption_report
 from retrieval.index import LocalEmbeddingIndex
 
 
 def main() -> None:
+    """Xây dựng và thực thi Pha 2 Thí nghiệm (Corruption -> Evaluate -> Repair -> Compare)."""
+    print("=== Phase 2 Experiment: Corruption, Repair & Comparison Flow ===")
     settings = load_settings()
 
-    print("[1/10] Loading baseline metrics and clean dataset")
+    # Step 1: Load Baseline Metrics & Clean Data
     if not settings.paths.baseline_metrics.exists():
-        raise FileNotFoundError(f"Baseline metrics not found at {settings.paths.baseline_metrics}. Run phase1 first.")
-    
+        raise RuntimeError("Baseline metrics missing. Please run Phase 1 first via script/run_phase1.py.")
+
     baseline_metrics = read_json(settings.paths.baseline_metrics)
-    
-    # Load optional baseline quality/freshness reports
-    baseline_quality_path = settings.paths.quality_dir / "baseline_quality_report.json"
-    baseline_quality = read_json(baseline_quality_path) if baseline_quality_path.exists() else None
-    
-    baseline_freshness_path = settings.paths.freshness_report
-    baseline_freshness = read_json(baseline_freshness_path) if baseline_freshness_path.exists() else None
+    print(f"Loaded Baseline Metrics: {baseline_metrics}")
 
-    # Load clean dataframe
-    if not settings.paths.clean_csv.exists():
-        raise FileNotFoundError(f"Clean CSV not found at {settings.paths.clean_csv}.")
-    df_clean = pd.read_csv(settings.paths.clean_csv)
+    if not settings.paths.clean_json.exists():
+        raise RuntimeError("Clean dataset missing.")
+    df_clean = pd.read_json(settings.paths.clean_json)
 
-    print("[2/10] Creating corrupted dataframe")
+    # Step 2: Corrupt Data
+    print("\n--- Step 1: Generating Controlled Corrupted Data ---")
     df_corrupted = corrupt_clean_dataframe(df_clean, settings.paths.corruption_log)
+    df_corrupted.to_json(settings.paths.corrupted_clean_json, orient="records", indent=2, force_ascii=False)
+    df_corrupted.to_csv(settings.paths.corrupted_clean_csv, index=False)
+    print(f"Corrupted dataset created with {len(df_corrupted)} records (Log saved to {settings.paths.corruption_log}).")
 
-    print("[3/10] Saving corrupted artifacts")
-    write_csv(df_corrupted, settings.paths.corrupted_clean_csv)
-    corrupted_records = json.loads(df_corrupted.to_json(orient="records", date_format="iso"))
-    write_json(settings.paths.corrupted_clean_json, corrupted_records)
-    # Also save to data/clean/papers_corrupted.csv as requested by user instructions
-    user_corrupted_csv = settings.paths.project_dir / "data" / "clean" / "papers_corrupted.csv"
-    write_csv(df_corrupted, user_corrupted_csv)
-    print(f"Saved corrupted artifacts to {settings.paths.corrupted_clean_csv} and {user_corrupted_csv}")
-
-    print("[4/10] Rebuilding Chroma index for corrupted dataset")
+    # Step 3: Build Index & Evaluate Corrupted State
+    print("\n--- Step 2: Building ChromaDB Vector Index for Corrupted Data ---")
     corrupted_index = LocalEmbeddingIndex.build(
-        df_corrupted,
+        df=df_corrupted,
         settings=settings,
         embeddings_output_path=settings.paths.corrupted_embeddings_json,
     )
-
-    print("[5/10] Evaluating corrupted index on frozen test set")
-    corrupted_evaluation = evaluate_pipeline(
+    print("Evaluating Corrupted State (RAG Agent & LLM Judge)...")
+    corrupted_bundle = evaluate_pipeline(
         settings=settings,
         index=corrupted_index,
         test_set_path=settings.paths.eval_testset,
         metrics_output_path=settings.paths.corrupted_metrics,
         answers_output_path=settings.paths.corrupted_answers,
     )
+    print(f"Corrupted Metrics Summary: {corrupted_bundle.summary}")
 
-    print("[6/10] Running quality and freshness checks on corrupted data")
-    corrupted_quality = run_data_quality_checks(df_corrupted, settings, report_name="corrupted")
-    corrupted_freshness = build_freshness_report(
-        df_corrupted, settings, settings.paths.quality_dir / "corrupted_freshness_report.json"
-    )
+    print("Running Observability Data Quality & Freshness on Corrupted Data...")
+    corrupted_quality = run_data_quality_checks(df_corrupted, settings, report_name="corrupted_quality")
+    corrupted_freshness_path = settings.paths.quality_dir / "corrupted_freshness_report.json"
+    corrupted_freshness = build_freshness_report(df_corrupted, settings, corrupted_freshness_path)
 
-    print("[7/10] Repairing dataset from raw Crossref records")
+    # Step 4: Repair Data from Raw Snapshot
+    print("\n--- Step 3: Repairing Data from Raw Snapshot (crossref_records.json) ---")
     if not settings.paths.raw_records_json.exists():
-        raise FileNotFoundError(f"Raw records snapshot not found at {settings.paths.raw_records_json}.")
+        raise RuntimeError(f"Raw snapshot file missing at {settings.paths.raw_records_json}")
+
     raw_records = load_raw_records(settings.paths.raw_records_json)
-    df_repaired = build_clean_dataframe(raw_records, run_date=now_utc())
+    df_repaired = build_clean_dataframe(raw_records, run_date=datetime.now(UTC))
+    df_repaired.to_json(settings.paths.repaired_clean_json, orient="records", indent=2, force_ascii=False)
+    df_repaired.to_csv(settings.paths.repaired_clean_csv, index=False)
+    print(f"Data successfully repaired: {len(df_repaired)} clean records recovered.")
 
-    print("[8/10] Saving repaired artifacts")
-    write_csv(df_repaired, settings.paths.repaired_clean_csv)
-    repaired_records = json.loads(df_repaired.to_json(orient="records", date_format="iso"))
-    write_json(settings.paths.repaired_clean_json, repaired_records)
-
-    print("[9/10] Rebuilding Chroma index for repaired dataset")
+    # Step 5: Build Index & Evaluate Repaired State
+    print("\n--- Step 4: Building ChromaDB Vector Index for Repaired Data ---")
     repaired_index = LocalEmbeddingIndex.build(
-        df_repaired,
+        df=df_repaired,
         settings=settings,
         embeddings_output_path=settings.paths.repaired_embeddings_json,
     )
-    
-    print("[10/10] Evaluating repaired index and generating reports")
-    repaired_evaluation = evaluate_pipeline(
+    print("Evaluating Repaired State (RAG Agent & LLM Judge)...")
+    repaired_bundle = evaluate_pipeline(
         settings=settings,
         index=repaired_index,
         test_set_path=settings.paths.eval_testset,
         metrics_output_path=settings.paths.repaired_metrics,
         answers_output_path=settings.paths.repaired_answers,
     )
-    repaired_quality = run_data_quality_checks(df_repaired, settings, report_name="repaired")
-    repaired_freshness = build_freshness_report(
-        df_repaired, settings, settings.paths.quality_dir / "repaired_freshness_report.json"
-    )
+    print(f"Repaired Metrics Summary: {repaired_bundle.summary}")
 
-    print("Generating comparison report")
+    print("Running Observability Data Quality & Freshness on Repaired Data...")
+    repaired_quality = run_data_quality_checks(df_repaired, settings, report_name="repaired_quality")
+    repaired_freshness_path = settings.paths.quality_dir / "repaired_freshness_report.json"
+    repaired_freshness = build_freshness_report(df_repaired, settings, repaired_freshness_path)
+
+    # Step 6: Generate 3-Column Comparison Report
+    print("\n--- Step 5: Generating Comparison Report ---")
     generate_corruption_report(
         report_path=settings.paths.comparison_report,
         baseline_metrics=baseline_metrics,
-        corrupted_metrics=corrupted_evaluation.summary,
-        repaired_metrics=repaired_evaluation.summary,
+        corrupted_metrics=corrupted_bundle.summary,
+        repaired_metrics=repaired_bundle.summary,
         corrupted_quality=corrupted_quality,
         repaired_quality=repaired_quality,
         corrupted_freshness=corrupted_freshness,
         repaired_freshness=repaired_freshness,
-        baseline_quality=baseline_quality,
-        baseline_freshness=baseline_freshness,
     )
-    print(f"Corruption flow completed. Report saved to: {settings.paths.comparison_report}")
+
+    # Copy to project root
+    root_report_path = settings.paths.project_dir / "corruption_report.md"
+    shutil.copy(settings.paths.comparison_report, root_report_path)
+    print(f"Comparison report saved to {settings.paths.comparison_report} and {root_report_path}.")
+    print("\n=== Phase 2 Experiment Completed Successfully! ===")
+
+
+if __name__ == "__main__":
+    main()
 

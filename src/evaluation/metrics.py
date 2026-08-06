@@ -14,7 +14,7 @@ from core.config import Settings
 from core.utils import normalize_whitespace, read_json, write_json
 from retrieval.embeddings import MiniLMEmbeddings
 from retrieval.index import LocalEmbeddingIndex
-from retrieval.llm import build_llm
+from retrieval.llm import build_judge_llm, build_llm
 from retrieval.qa import answer_question
 
 
@@ -59,7 +59,7 @@ Return:
 - short reasoning
 """.strip()
     try:
-        llm = build_llm(settings=settings, temperature=0.0).with_structured_output(JudgeVerdict)
+        llm = build_judge_llm(settings=settings, temperature=0.0).with_structured_output(JudgeVerdict)
         return llm.invoke(prompt)
     except Exception:
         score = 5 if _token_f1(reference, prediction) >= 0.95 else 3 if _token_f1(reference, prediction) >= 0.5 else 1

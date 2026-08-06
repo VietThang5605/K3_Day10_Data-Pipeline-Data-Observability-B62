@@ -1,19 +1,7 @@
 {
-  "generated_at": "2026-08-06T05:22:02+00:00",
-  "freshness_threshold_days": 180,
-  "age_days_column": "age_days",
   "latest_published": "2026-08-01",
   "oldest_published": "2026-02-12",
-  "missing_published": 0,
-  "invalid_published": 0,
-  "age_days_column_present": true,
-  "total_rows": 24,
-  "fresh_rows": 24,
   "stale_rows": 0,
-  "missing_age_days": 0,
-  "invalid_age_days": 0,
-  "future_dated_rows": 0,
-  "is_fresh": true,
-  "status": "fresh",
-  "message": "All rows have valid age_days values within the configured threshold."
+  "total_rows": 23,
+  "is_fresh": true
 }

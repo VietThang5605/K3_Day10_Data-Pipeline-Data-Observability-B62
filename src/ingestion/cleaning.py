@@ -137,21 +137,14 @@ def _build_embedding_text(row: dict[str, object]) -> str:
     return "\n".join(parts)
 
 
-def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.DataFrame:
-    """TODO(student): clean raw records thanh dataframe san sang de embed.
+def _is_english_latin_text(text: str) -> bool:
+    """Kiểm tra văn bản không chứa dải ký tự phi Latinh (Nga Cyrillic, Nhật, Hàn, Trung, Ả Rập...)."""
+    non_latin_pattern = r"[\u0400-\u04FF\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7AF\u0600-\u06FF]"
+    return not bool(re.search(non_latin_pattern, text))
 
-    Pseudo-code:
-    1. Normalize title, summary, authors, categories.
-    2. Parse published/updated date.
-    3. Tinh age_days.
-    4. Tao cot helper:
-       - authors_joined
-       - categories_joined
-       - summary_chars
-       - text_for_embedding
-    5. Drop duplicates va filter row xau.
-    6. Sort dataframe va return.
-    """
+
+def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.DataFrame:
+    """Clean raw records thành dataframe sẵn sàng để embed."""
     run_timestamp = pd.Timestamp(run_date)
     if run_timestamp.tzinfo is None:
         run_timestamp = run_timestamp.tz_localize("UTC")
@@ -164,6 +157,8 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
         "missing_paper_id": 0,
         "missing_title": 0,
         "missing_summary": 0,
+        "short_summary": 0,
+        "non_english_script": 0,
         "invalid_published": 0,
         "non_english_summary_blocks_removed": 0,
         "non_latin_record": 0,
@@ -183,8 +178,14 @@ def build_clean_dataframe(records: list[PaperRecord], run_date: datetime) -> pd.
         if not title:
             filter_counts["missing_title"] += 1
             continue
+        if not _is_english_latin_text(title):
+            filter_counts["non_english_script"] += 1
+            continue
         if not summary:
             filter_counts["missing_summary"] += 1
+            continue
+        if len(summary) < 100:
+            filter_counts["short_summary"] += 1
             continue
         if pd.isna(published_date):
             filter_counts["invalid_published"] += 1

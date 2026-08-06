@@ -6,6 +6,7 @@ import re
 from core.config import Settings
 from core.utils import first_sentence
 from retrieval.index import LocalEmbeddingIndex, SearchResult
+from retrieval.llm import build_llm
 
 
 @dataclass(frozen=True)
@@ -15,24 +16,53 @@ class AnswerResult:
     retrieved_doc_ids: list[str]
     retrieved_contexts: list[str]
     retrieved_titles: list[str]
+    retrieved_scores: list[float]
 
 
-def _extract_answer(question: str, top_result: SearchResult) -> str:
+def _extract_answer_heuristic(question: str, top_result: SearchResult) -> str:
     lowered = question.lower()
     metadata = top_result.metadata
-    if any(phrase in lowered for phrase in ("who authored", "who wrote", "author", "authors")):
-        return str(metadata.get("authors_joined", ""))
-    if any(phrase in lowered for phrase in ("when was", "publication date", "published on", "published date")):
-        return str(metadata.get("published", ""))
-    if any(phrase in lowered for phrase in ("category", "categories", "research topics", "subject", "subjects")):
-        return str(metadata.get("categories_joined", ""))
-    return first_sentence(str(metadata.get("summary", "")))
+    if "who authored" in lowered or "list the authors" in lowered:
+        return metadata.get("authors_joined", "")
+    if "when was" in lowered or "publication date" in lowered or "published on" in lowered:
+        return metadata.get("published", "")
+    if "what categories" in lowered:
+        return metadata.get("categories_joined", "")
+    return first_sentence(metadata.get("summary", ""))
 
 
-def answer_question(question: str, settings: Settings, index: LocalEmbeddingIndex, top_k: int | None = None) -> AnswerResult:
-    # The frozen test set wraps titles in double quotes; accept either quote style.
-    title_match = re.search(r"['\"]([^'\"]+)['\"]", question)
-    exact = index.lookup(title_match.group(1).strip()) if title_match else None
+def _generate_answer_with_llm(question: str, retrieved_results: list[SearchResult], settings: Settings) -> str:
+    if not retrieved_results:
+        return "I don't know from the indexed corpus."
+    try:
+        llm = build_llm(settings=settings, temperature=0.0)
+        context_blocks = []
+        for res in retrieved_results:
+            context_blocks.append(f"Title: {res.title}\nContent: {res.content}")
+        context_str = "\n\n---\n\n".join(context_blocks)
+
+        prompt = f"""You are a precise research assistant answering questions about indexed scholarly papers.
+Answer the user's question using ONLY the provided context blocks below.
+Be concise, truthful, and directly state the facts requested.
+If the context does not contain enough information to answer the question, state: "I don't know from the indexed corpus."
+
+Context:
+{context_str}
+
+Question: {question}
+Answer:"""
+
+        response = llm.invoke(prompt)
+        content = getattr(response, "content", str(response)).strip()
+        return content if content else "I don't know from the indexed corpus."
+    except Exception as e:
+        print(f"LLM answer generation failed: {e}. Falling back to heuristic.")
+        return _extract_answer_heuristic(question, retrieved_results[0])
+
+
+def answer_question(question: str, index: LocalEmbeddingIndex, settings: Settings, top_k: int | None = None) -> AnswerResult:
+    title_match = re.search(r'["\']([^"\']+)["\']', question)
+    exact = index.lookup(title_match.group(1)) if title_match else None
     retrieved = index.search(question, top_k=top_k)
     if exact:
         exact_result = SearchResult(
@@ -47,11 +77,12 @@ def answer_question(question: str, settings: Settings, index: LocalEmbeddingInde
     if not retrieved:
         answer = "I don't know from the indexed corpus."
     else:
-        answer = _extract_answer(question, retrieved[0])
+        answer = _generate_answer_with_llm(question, retrieved, settings)
     return AnswerResult(
         question=question,
         answer=answer,
         retrieved_doc_ids=[item.paper_id for item in retrieved],
         retrieved_contexts=[item.content for item in retrieved],
         retrieved_titles=[item.title for item in retrieved],
+        retrieved_scores=[round(item.score, 4) for item in retrieved],
     )
