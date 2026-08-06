@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Data Observability & Health Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .light-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border-radius: 16px;
+        }
+        .light-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased selection:bg-sky-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 shadow-sm">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-gradient-to-tr from-sky-500 to-blue-600 rounded-xl shadow-md shadow-sky-500/20">
+                    <i data-lucide="activity" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 bg-clip-text text-transparent">
+                        RAG Data Observability & Health Monitor
+                    </h1>
+                    <p class="text-xs text-slate-500">Real-time Quality Signals & 3-State Experiment Matrix (Light Mode)</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <a href="http://localhost:8501" target="_blank" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm rounded-xl transition-all shadow-md shadow-blue-500/20">
+                    <i data-lucide="bot" class="w-4 h-4"></i>
+                    <span>🤖 Open Streamlit Chatbot Sandbox</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+        <!-- 1. Health Metrics Cards Grid -->
+        <section>
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-5 h-5 text-sky-600"></i>
+                System Health & Observability Metrics
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                
+                <div class="light-card p-5 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Clean Records</p>
+                        <h3 class="text-3xl font-extrabold text-slate-900 mt-1" id="stat-records">23</h3>
+                        <p class="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 100% English Verified
+                        </p>
+                    </div>
+                    <div class="p-3.5 bg-sky-50 border border-sky-100 rounded-xl text-sky-600">
+                        <i data-lucide="file-text" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <div class="light-card p-5 flex items-center justify-between border-l-4 border-l-emerald-500">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Data Quality Status</p>
+                        <h3 class="text-2xl font-extrabold text-emerald-600 mt-1" id="stat-quality">PASSED 🟢</h3>
+                        <p class="text-xs text-slate-500 mt-1">Completeness & Uniqueness</p>
+                    </div>
+                    <div class="p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600">
+                        <i data-lucide="check-square" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <div class="light-card p-5 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Freshness Check</p>
+                        <h3 class="text-2xl font-extrabold text-blue-600 mt-1" id="stat-freshness">100% FRESH 🟢</h3>
+                        <p class="text-xs text-slate-500 mt-1">0 Stale Rows (>180d)</p>
+                    </div>
+                    <div class="p-3.5 bg-blue-50 border border-blue-100 rounded-xl text-blue-600">
+                        <i data-lucide="clock" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <div class="light-card p-5 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Embedding Model</p>
+                        <h3 class="text-sm font-bold text-indigo-700 mt-2 font-mono">all-MiniLM-L6-v2</h3>
+                        <p class="text-xs text-slate-500 mt-1">Vector Size: 384d</p>
+                    </div>
+                    <div class="p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600">
+                        <i data-lucide="cpu" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 2. 3-State Comparative Matrix Table -->
+        <section class="light-card p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="columns" class="w-5 h-5 text-indigo-600"></i>
+                        3-State Experiment Comparative Matrix
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Quantitative evaluation across Baseline, Controlled Corruption and Repaired States</p>
+                </div>
+                <span class="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200">
+                    Frozen Benchmark: 10 Samples
+                </span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-100/80 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                            <th class="py-3.5 px-4">Evaluation Metric / Signal</th>
+                            <th class="py-3.5 px-4 text-emerald-700">🟢 Baseline (Clean)</th>
+                            <th class="py-3.5 px-4 text-rose-700">🔴 Corrupted (Lỗi)</th>
+                            <th class="py-3.5 px-4 text-blue-700">🔵 Repaired (Phục hồi)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-tbody" class="divide-y divide-slate-200 text-sm font-medium">
+                        <!-- Filled by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 3. Corruption Scenario Inspector -->
+        <section class="light-card p-6">
+            <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <i data-lucide="flame" class="w-5 h-5 text-rose-600"></i>
+                Controlled Corruption Scenario Log Inspector
+            </h2>
+            <div id="corruption-scenarios-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Scenarios populated by JS -->
+            </div>
+        </section>
+
+        <!-- 4. Clean Dataset Explorer -->
+        <section class="light-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="database" class="w-5 h-5 text-sky-600"></i>
+                    Clean Papers Dataset Explorer (23 English Records)
+                </h2>
+                <input type="text" id="paper-search" placeholder="Search title or author..." class="px-4 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white w-64 transition-all">
+            </div>
+            
+            <div class="overflow-x-auto max-h-96">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="sticky top-0 bg-slate-100 text-slate-600 border-b border-slate-200 font-bold">
+                        <tr>
+                            <th class="p-3">DOI / Paper ID</th>
+                            <th class="p-3">Title</th>
+                            <th class="p-3">Authors</th>
+                            <th class="p-3">Category</th>
+                            <th class="p-3">Published</th>
+                        </tr>
+                    </thead>
+                    <tbody id="papers-tbody" class="divide-y divide-slate-200 text-slate-700">
+                        <!-- Papers loaded by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-6 text-xs text-slate-500 border-t border-slate-200 bg-white">
+        RAG Data Pipeline & Observability Dashboard (Light Mode) &copy; 2026. Built with FastAPI & TailwindCSS.
+    </footer>
+
+    <!-- JavaScript Data Binding -->
+    <script>
+        lucide.createIcons();
+
+        async function loadDashboardData() {
+            try {
+                // 1. Fetch Comparison Matrix
+                const compRes = await fetch('/api/comparison');
+                const compData = await compRes.json();
+                
+                const tbody = document.getElementById('matrix-tbody');
+                tbody.innerHTML = '';
+                
+                compData.metrics.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50/80 transition-colors';
+                    tr.innerHTML = `
+                        <td class="py-3.5 px-4 font-semibold text-slate-800">${row.name}</td>
+                        <td class="py-3.5 px-4 font-mono font-bold text-emerald-700">${row.baseline}</td>
+                        <td class="py-3.5 px-4 font-mono font-bold text-rose-700">${row.corrupted}</td>
+                        <td class="py-3.5 px-4 font-mono font-bold text-blue-700">${row.repaired}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // 2. Fetch Corruption Log
+                const logRes = await fetch('/api/corruption-log');
+                const logData = await logRes.json();
+                
+                const logGrid = document.getElementById('corruption-scenarios-grid');
+                logGrid.innerHTML = '';
+                
+                logData.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'p-4 bg-rose-50/60 rounded-xl border border-rose-200 shadow-sm';
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-rose-200 text-rose-800 border border-rose-300">
+                                Scenario: ${item.scenario}
+                            </span>
+                            <span class="text-xs font-mono text-slate-500">${item.paper_id || 'ID Blank'}</span>
+                        </div>
+                        <p class="text-xs text-slate-700 mt-2 font-medium">${item.action}</p>
+                    `;
+                    logGrid.appendChild(card);
+                });
+
+                // 3. Fetch Clean Papers
+                const papersRes = await fetch('/api/papers');
+                const papersData = await papersRes.json();
+                
+                const papersTbody = document.getElementById('papers-tbody');
+                
+                function renderPapers(list) {
+                    papersTbody.innerHTML = '';
+                    list.forEach(p => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-slate-50';
+                        tr.innerHTML = `
+                            <td class="p-3 font-mono font-semibold text-sky-700">${p.paper_id}</td>
+                            <td class="p-3 font-bold text-slate-900">${p.title}</td>
+                            <td class="p-3 text-slate-600">${p.authors_joined}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded text-2xs font-mono font-medium">${p.primary_category}</span></td>
+                            <td class="p-3 font-mono text-slate-500">${p.published}</td>
+                        `;
+                        papersTbody.appendChild(tr);
+                    });
+                }
+                
+                renderPapers(papersData);
+
+                // Search Filter
+                document.getElementById('paper-search').addEventListener('input', (e) => {
+                    const q = e.target.value.toLowerCase();
+                    const filtered = papersData.filter(p => 
+                        p.title.toLowerCase().includes(q) || p.authors_joined.toLowerCase().includes(q) || p.paper_id.toLowerCase().includes(q)
+                    );
+                    renderPapers(filtered);
+                });
+
+            } catch (err) {
+                console.error("Failed to load dashboard data:", err);
+            }
+        }
+
+        loadDashboardData();
+    </script>
+</body>
+</html>

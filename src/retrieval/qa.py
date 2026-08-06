@@ -16,6 +16,7 @@ class AnswerResult:
     retrieved_doc_ids: list[str]
     retrieved_contexts: list[str]
     retrieved_titles: list[str]
+    retrieved_scores: list[float]
 
 
 def _extract_answer_heuristic(question: str, top_result: SearchResult) -> str:
@@ -41,22 +42,26 @@ def _generate_answer_with_llm(question: str, retrieved_results: list[SearchResul
         context_str = "\n\n---\n\n".join(context_blocks)
 
         prompt = f"""You are a precise research assistant answering questions about indexed scholarly papers.
-Answer the user's question based strictly on the provided retrieved paper contexts. Be concise, direct, and factual. Do not extrapolate beyond the retrieved facts.
+Answer the user's question using ONLY the provided context blocks below.
+Be concise, truthful, and directly state the facts requested.
+If the context does not contain enough information to answer the question, state: "I don't know from the indexed corpus."
 
-Retrieved Contexts:
+Context:
 {context_str}
 
 Question: {question}
-
 Answer:"""
+
         response = llm.invoke(prompt)
-        return getattr(response, "content", str(response)).strip()
-    except Exception:
+        content = getattr(response, "content", str(response)).strip()
+        return content if content else "I don't know from the indexed corpus."
+    except Exception as e:
+        print(f"LLM answer generation failed: {e}. Falling back to heuristic.")
         return _extract_answer_heuristic(question, retrieved_results[0])
 
 
-def answer_question(question: str, settings: Settings, index: LocalEmbeddingIndex, top_k: int | None = None) -> AnswerResult:
-    title_match = re.search(r"'([^']+)'", question)
+def answer_question(question: str, index: LocalEmbeddingIndex, settings: Settings, top_k: int | None = None) -> AnswerResult:
+    title_match = re.search(r'["\']([^"\']+)["\']', question)
     exact = index.lookup(title_match.group(1)) if title_match else None
     retrieved = index.search(question, top_k=top_k)
     if exact:
@@ -79,5 +84,5 @@ def answer_question(question: str, settings: Settings, index: LocalEmbeddingInde
         retrieved_doc_ids=[item.paper_id for item in retrieved],
         retrieved_contexts=[item.content for item in retrieved],
         retrieved_titles=[item.title for item in retrieved],
+        retrieved_scores=[round(item.score, 4) for item in retrieved],
     )
-
